@@ -574,12 +574,6 @@ local Window =
     }
 )
 
-Rayfield:Notify({
-   Title = "Discord",
-   Content = "The discord invitation link has been copied to your clipboard automatically :)",
-   Duration = 6.5,
-   Image = 4483362458,
-})
 
 setclipboard(tostring("https://discord.gg/85tHp3jp"))
 
