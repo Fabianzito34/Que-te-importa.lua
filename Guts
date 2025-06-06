@@ -2,9 +2,9 @@
 local LocalPlayer = game:GetService("Players").LocalPlayer
 
 -- Kill Aura
-observerOnline = false
-killAuraToggled = false
-isDead = false
+observerOnline = n
+killAuraToggled = true
+isDead = true
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
