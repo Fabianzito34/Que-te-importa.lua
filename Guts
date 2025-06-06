@@ -5,7 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
---// Librería de UI
+--Librería de UI
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Main.lua"))()
 local Window = Library:CreateWindow({
 	Title = "Roblox Combat Script", -- Título de la ventana cambiado
@@ -80,10 +80,10 @@ local Themes = {
 
 }
 
---// Configurar el tema predeterminado
+--Configurar el tema predeterminado
 Window:SetTheme(Themes.Dark)
 
---// Atajo para mostrar/ocultar la UI
+--Atajo para mostrar/ocultar la UI
 local uiVisible = true
 local hideShowKeybind = Enum.KeyCode.RightAlt -- Puedes cambiar esta tecla
 
@@ -99,13 +99,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     end
 end)
 
---// Secciones de la UI
+--Secciones de la UI
 Window:AddTabSection({
 	Name = "Combate", -- Nombre de la sección
 	Order = 1,
 })
 
---// Pestaña [COMBATE]
+--Pestaña [COMBATE]
 local CombatTab = Window:AddTab({
 	Title = "Funciones de Combate",
 	Section = "Combate",
@@ -484,7 +484,7 @@ if LocalPlayer.Character then
     initializeCombatFeatures()
 end
 
---// Notificación de la UI al cargar
+--Notificación de la UI al cargar
 Window:Notify({
 	Title = "Script Cargado!",
 	Description = "Presiona ALT DERECHO para mostrar/ocultar la UI. ALT IZQUIERDO para minimizar/maximizar.", 
@@ -492,7 +492,7 @@ Window:Notify({
 })
 
 -- Conservamos la sección de "Settings" y sus componentes originales
---// Pestaña [AJUSTES]
+--Pestaña [AJUSTES]
 local Settings = Window:AddTab({
 	Title = "Ajustes",
 	Section = "Combate", -- Se mantiene en la sección "Combate"
