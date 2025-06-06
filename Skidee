@@ -549,7 +549,7 @@ local Window =
         LoadingTitle = "Xabisco on youtube.",
         LoadingSubtitle = "by Xabisco",
         Theme = "Default",
-        DisableRayfieldPrompts = false,
+        DisableRayfieldPrompts = true,
         DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
         ConfigurationSaving = {
             Enabled = true,
@@ -559,7 +559,7 @@ local Window =
         Discord = {
             Enabled = true,
             Invite = "v8hYqpn2",
-            RememberJoins = true
+            RememberJoins = false
         },
         KeySystem = true,
         KeySettings = {
