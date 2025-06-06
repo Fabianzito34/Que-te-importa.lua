@@ -1,10 +1,124 @@
--- Main Functions
-local LocalPlayer = game:GetService("Players").LocalPlayer
+--// Servicios
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Kill Aura
-observerOnline = n
-killAuraToggled = true
-isDead = true
+--// Librería de UI
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Main.lua"))()
+local Window = Library:CreateWindow({
+	Title = "Roblox Combat Script", -- Título de la ventana cambiado
+	Theme = "Dark",
+	
+	Size = UDim2.fromOffset(570, 370),
+	Transparency = 0.2,
+	Blurring = true,
+	MinimizeKeybind = Enum.KeyCode.LeftAlt, -- Tecla para minimizar/maximizar
+})
+
+local Themes = {
+	Light = {
+		--// Frames:
+		Primary = Color3.fromRGB(232, 232, 232),
+		Secondary = Color3.fromRGB(255, 255, 255),
+		Component = Color3.fromRGB(245, 245, 245),
+		Interactables = Color3.fromRGB(235, 235, 235),
+
+		--// Text:
+		Tab = Color3.fromRGB(50, 50, 50),
+		Title = Color3.fromRGB(0, 0, 0),
+		Description = Color3.fromRGB(100, 100, 100),
+
+		--// Outlines:
+		Shadow = Color3.fromRGB(255, 255, 255),
+		Outline = Color3.fromRGB(210, 210, 210),
+
+		--// Image:
+		Icon = Color3.fromRGB(100, 100, 100),
+	},
+	
+	Dark = {
+		--// Frames:
+		Primary = Color3.fromRGB(30, 30, 30),
+		Secondary = Color3.fromRGB(35, 35, 35),
+		Component = Color3.fromRGB(40, 40, 40),
+		Interactables = Color3.fromRGB(45, 45, 45),
+
+		--// Text:
+		Tab = Color3.fromRGB(200, 200, 200),
+		Title = Color3.fromRGB(240,240,240),
+		Description = Color3.fromRGB(200,200,200),
+
+		--// Outlines:
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(40, 40, 40),
+
+		--// Image:
+		Icon = Color3.fromRGB(220, 220, 220),
+	},
+	
+	Void = {
+		--// Frames:
+		Primary = Color3.fromRGB(15, 15, 15),
+		Secondary = Color3.fromRGB(20, 20, 20),
+		Component = Color3.fromRGB(25, 25, 25),
+		Interactables = Color3.fromRGB(30, 30, 30),
+
+		--// Text:
+		Tab = Color3.fromRGB(200, 200, 200),
+		Title = Color3.fromRGB(240,240,240),
+		Description = Color3.fromRGB(200,200,200),
+
+		--// Outlines:
+		Shadow = Color3.fromRGB(0, 0, 0),
+		Outline = Color3.fromRGB(40, 40, 40),
+
+		--// Image:
+		Icon = Color3.fromRGB(220, 220, 220),
+	},
+
+}
+
+--// Configurar el tema predeterminado
+Window:SetTheme(Themes.Dark)
+
+--// Atajo para mostrar/ocultar la UI
+local uiVisible = true
+local hideShowKeybind = Enum.KeyCode.RightAlt -- Puedes cambiar esta tecla
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.KeyCode == hideShowKeybind then
+        uiVisible = not uiVisible
+        Library:Toggle(uiVisible) -- Usa el método de la librería para mostrar/ocultar
+        Window:Notify({
+            Title = "UI",
+            Description = "UI " .. (uiVisible and "visible" or "oculta"),
+            Duration = 3
+        })
+    end
+end)
+
+--// Secciones de la UI
+Window:AddTabSection({
+	Name = "Combate", -- Nombre de la sección
+	Order = 1,
+})
+
+--// Pestaña [COMBATE]
+local CombatTab = Window:AddTab({
+	Title = "Funciones de Combate",
+	Section = "Combate",
+	Icon = "rbxassetid://11963373994" -- Puedes cambiar este icono
+})
+
+Window:AddSection({ Name = "Aura Asesina (Kill Aura)", Tab = CombatTab }) 
+
+-- Variables de Estado para Kill Aura
+local observerOnline = false
+local killAuraToggled = false
+local toolEquip = true -- Asume que una herramienta está equipada por defecto para Kill Aura
+local isDead = false 
 
 local raycastParams = RaycastParams.new()
 raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
@@ -13,27 +127,35 @@ raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 local params = OverlapParams.new()
 params.FilterDescendantsInstances = {LocalPlayer.Character}
 
-function detectEnemy(hitbox, hrp)
-    print("Detect enemy Start!")
+local function detectEnemy(hitbox, hrp)
+    print("Kill Aura: Iniciando detección de enemigos!")
     while true do
-        if killAuraToggled == false then
-            print("detectEnemy killed!")
+        -- Si killAuraToggled es falso, o si el personaje/hitbox no existen (ej. al morir)
+        if killAuraToggled == false or not hrp.Parent or not hitbox.Parent then 
+            print("Kill Aura: Detección de enemigos detenida.")
             isDead = false
             observerOnline = false
             return nil
         end
 
-        local parts = workspace:GetPartsInPart(hitbox, params)
+        local parts = Workspace:GetPartsInPart(hitbox, params)
         for i, part in pairs(parts) do
             if part.parent and part.parent.Name == "m_Zombie" then
-                local Origin = part.parent:WaitForChild("Orig")
-                if Origin.Value ~= nil then
-                    local zombie = Origin.Value:WaitForChild("Zombie")
-                    local childrens = LocalPlayer.Character:GetChildren()
-                    if toolEquip then
+                local Origin = part.parent:WaitForChild("Orig", 5) 
+                if Origin and Origin.Value ~= nil then
+                    local zombie = Origin.Value:WaitForChild("Zombie", 5) 
+                    if not zombie then continue end 
+
+                    if LocalPlayer.Character and toolEquip then 
                         local hit = Origin.Value
-                        local zombieHead = workspace:Raycast(hrp.CFrame.Position, hit.Head.CFrame.Position - hrp.CFrame.Position)
-                        local calc = (zombieHead.Position - hrp.CFrame.Position)
+                        local zombieHeadPart = hit:FindFirstChild("Head")
+                        if not zombieHeadPart then continue end
+
+                        local zombieHead = Workspace:Raycast(hrp.CFrame.Position, zombieHeadPart.CFrame.Position - hrp.CFrame.Position)
+                        local rayHitPosition = zombieHead and zombieHead.Position or zombieHeadPart.CFrame.Position
+                        local rayHitNormal = zombieHead and zombieHead.Normal or Vector3.new(0,1,0)
+
+                        local calc = (rayHitPosition - hrp.CFrame.Position)
 
                         if calc:Dot(calc) > 1 then
                             calc = calc.Unit
@@ -41,14 +163,14 @@ function detectEnemy(hitbox, hrp)
 
                         if LocalPlayer:DistanceFromCharacter(Origin.Value:FindFirstChild("HumanoidRootPart").CFrame.Position) < 13 then
                             if zombie.WalkSpeed > 16 then
-                                game:GetService("ReplicatedStorage").Remotes.Gib:FireServer(hit, "Head", hit.Head.CFrame.Position, zombieHead.Normal, true)
-                                game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
-                                game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, hit.Head.CFrame.Position, true, calc * 25, "Head", zombieHead.Normal)
+                                ReplicatedStorage.Remotes.Gib:FireServer(hit, "Head", rayHitPosition, rayHitNormal, true)
+                                Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
+                                Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, rayHitPosition, true, calc * 25, "Head", rayHitNormal)
                             else
                                 if part.Parent:FindFirstChild("Barrel") == nil then
-                                    game:GetService("ReplicatedStorage").Remotes.Gib:FireServer(hit, "Head", hit.Head.CFrame.Position, zombieHead.Normal, true)
-                                    game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
-                                    game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, hit.Head.CFrame.Position, true, calc * 25, "Head", zombieHead.Normal)
+                                    ReplicatedStorage.Remotes.Gib:FireServer(hit, "Head", rayHitPosition, rayHitNormal, true)
+                                    Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
+                                    Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, rayHitPosition, true, calc * 25, "Head", rayHitNormal)
                                 end
                             end
                         end
@@ -56,20 +178,26 @@ function detectEnemy(hitbox, hrp)
                 end
             end
         end
+        task.wait(0.05)
     end
 end
 
-function createHitBox()
-    if LocalPlayer.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("Hitbox") ~= nil then
+local function createHitBox()
+    observerOnline = false 
+    local character = LocalPlayer.Character
+    if not character then warn("Kill Aura: Personaje no encontrado para crear hitbox."); return false end
+    local torso = character:WaitForChild("HumanoidRootPart", 5)
+    if not torso then warn("Kill Aura: HumanoidRootPart no encontrada para crear hitbox."); return false end
+
+    local hitbox = torso:FindFirstChild("Hitbox")
+    if hitbox then
         if observerOnline == false then
             observerOnline = true
-            detectEnemy(LocalPlayer.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("Hitbox"), LocalPlayer.Character:WaitForChild("HumanoidRootPart"))
+            task.spawn(detectEnemy, hitbox, torso)
         end
-
         return true
     else
-        local torso = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-        local hitbox = Instance.new("Part", torso)
+        hitbox = Instance.new("Part")
         hitbox.Name = "Hitbox"
         hitbox.Anchored = false
         hitbox.Massless = true
@@ -77,7 +205,7 @@ function createHitBox()
         hitbox.CanTouch = false
         hitbox.Transparency  = 1
         hitbox.Size = Vector3.new(13, 7, 12.5)
-        hitbox.CFrame = torso.CFrame * CFrame.new(0, 0, -7.8)
+        hitbox.Parent = torso
 
         local weld = Instance.new("WeldConstraint", torso)
         weld.Part0 = hitbox
@@ -85,20 +213,48 @@ function createHitBox()
 
         if observerOnline == false then
             observerOnline = true
-            detectEnemy(hitbox, LocalPlayer.Character:WaitForChild("HumanoidRootPart"))
+            task.spawn(detectEnemy, hitbox, torso)
         end
-
         return true
     end
 end
 
--- Bayonet Support
+-- Toggle para Kill Aura
+Window:AddToggle({
+	Title = "Activar Kill Aura",
+	Description = "Ataca automáticamente a los zombies, priorizando disparos a la cabeza.",
+	Tab = CombatTab,
+    Default = false, -- Se inicia desactivado por defecto en la UI
+	Callback = function(Boolean) 
+		killAuraToggled = Boolean
+        if Boolean then
+            task.spawn(createHitBox) -- Iniciar si está activado
+            Window:Notify({
+                Title = "Kill Aura",
+                Description = "Kill Aura Activado", 
+                Duration = 2
+            })
+        else
+            Window:Notify({
+                Title = "Kill Aura",
+                Description = "Kill Aura Desactivado", 
+                Duration = 2
+            })
+        end
+	end,
+}) 
 
-local FlintLock = require(game:GetService("ReplicatedStorage").Modules.Weapons:waitForChild("Flintlock"))
-local originFunction_ = FlintLock.BayonetHitCheck
+Window:AddSection({ Name = "Modificadores de Arma", Tab = CombatTab }) 
+
+-- Soporte de Bayoneta
+local FlintLock = require(ReplicatedStorage.Modules.Weapons:waitForChild("Flintlock"))
+local originalBayonetHitCheck = FlintLock.BayonetHitCheck
+
+local v_u_1 = {} 
+v_u_1.__index = v_u_1
 
 function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
-    local v120 = workspace:Raycast(p116, p117, p118)
+    local v120 = Workspace:Raycast(p116, p117, p118)
     if v120 then
         if v120.Instance.Parent.Name == "m_Zombie" then
             local v121 = p118.FilterDescendantsInstances
@@ -109,24 +265,26 @@ function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
             if v123 then
                 local Head = ""
                 for i, part in pairs(v120.Instance.Parent:GetChildren()) do
-                    if part.Name == "Head" and part.ClassName == "Part" or part.ClassName == "MeshPart" then
+                    if part.Name == "Head" and (part.ClassName == "Part" or part.ClassName == "MeshPart") then
                         Head = part
+                        break 
                     end
                 end
-                print(Head)
-                p115.remoteEvent:FireServer("Bayonet_HitZombie", v123.Value, Head.CFrame.Position, true, "Head")
-                local v_u_124 = v123.Value
-                local v_u_125 = tick()
-                v_u_124:SetAttribute("WepHitID", tick())
-                v_u_124:SetAttribute("WepHitDirection", p117 * 10)
-                v_u_124:SetAttribute("WepHitPos", v120.Position)
-                task.delay(0.2, function()
-                    if v_u_124:GetAttribute("WepHitID") == v_u_125 then
-                        v_u_124:SetAttribute("WepHitDirection", nil)
-                        v_u_124:SetAttribute("WepHitPos", nil)
-                        v_u_124:SetAttribute("WepHitID", nil)
-                    end
-                end)
+                if Head ~= "" then 
+                    p115.remoteEvent:FireServer("Bayonet_HitZombie", v123.Value, Head.CFrame.Position, true, "Head")
+                    local v_u_124 = v123.Value
+                    local v_u_125 = tick()
+                    v_u_124:SetAttribute("WepHitID", tick())
+                    v_u_124:SetAttribute("WepHitDirection", p117 * 10)
+                    v_u_124:SetAttribute("WepHitPos", v120.Position)
+                    task.delay(0.2, function()
+                        if v_u_124:GetAttribute("WepHitID") == v_u_125 then
+                            v_u_124:SetAttribute("WepHitDirection", nil)
+                            v_u_124:SetAttribute("WepHitPos", nil)
+                            v_u_124:SetAttribute("WepHitID", nil)
+                        end
+                    end)
+                end
             end
             return 1
         end
@@ -136,7 +294,7 @@ function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
             p115.remoteEvent:FireServer("Bayonet_HitCon", v120.Instance, v120.Position, v120.Normal, v120.Material)
             return 2
         end
-        local v127 = v120.Instance.Parent:FindFirstChild("Humanoid") or v120.Instance.Parent.Parent:FindFirstChild("Humanoid")
+        local v127 = v120.Instance.Parent:FindFirstChild("Humanoid") or (v120.Instance.Parent.Parent and v120.Instance.Parent.Parent:FindFirstChild("Humanoid"))
         if v127 and not table.find(p119, v127) then
             table.insert(p119, v127)
             p115.remoteEvent:FireServer("Bayonet_HitPlayer", v127, v120.Position)
@@ -146,20 +304,25 @@ function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
     return 0
 end
 
-function changeBayonet(value)
+local function changeBayonet(value)
    if value then
-      print("Function Changed! - Bayonet")
+      print("Bayoneta: Función de impacto modificada.")
       FlintLock.BayonetHitCheck = v_u_1.BayonetHitCheck
    else
-      FlintLock.BayonetHitCheck = originFunction_
+      print("Bayoneta: Función de impacto restaurada.")
+      FlintLock.BayonetHitCheck = originalBayonetHitCheck
    end
 end
 
-local MeleeBase = require(game:GetService("ReplicatedStorage").Modules.Weapons:waitForChild("MeleeBase"))
-local originFunction = MeleeBase.MeleeHitCheck
+-- Soporte de Melee
+local MeleeBase = require(ReplicatedStorage.Modules.Weapons:waitForChild("MeleeBase"))
+local originalMeleeHitCheck = MeleeBase.MeleeHitCheck
+
+local u1 = {} 
+u1.__index = u1
 
 function u1.MeleeHitCheck(p100, p101, p102, p103, p104, p105)
-    local v106 = workspace:Raycast(p101, p102, p103)
+    local v106 = Workspace:Raycast(p101, p102, p103)
     if v106 then
         if v106.Instance.Parent.Name == "m_Zombie" then
             local v107 = p103.FilterDescendantsInstances
@@ -183,40 +346,40 @@ function u1.MeleeHitCheck(p100, p101, p102, p103, p104, p105)
                     if p105 then
                         p100.remoteEvent:FireServer("ThrustCharge", v109.Value, v106.Position, v106.Normal)
                     else
-
                         local Head = ""
                         for i, part in pairs(v106.Instance.Parent:GetChildren()) do
-                            if part.Name == "Head" and part.ClassName == "Part" or part.ClassName == "MeshPart" then
+                            if part.Name == "Head" and (part.ClassName == "Part" or part.ClassName == "MeshPart") then
                                 Head = part
+                                break 
                             end
                         end
-                        local u112 = v109.Value
-                        local v113 = Head.CFrame.Position - p101
-                        if v113:Dot(v113) > 1 then
-                            v113 = v113.Unit
+                        if Head ~= "" then 
+                            local u112 = v109.Value
+                            local v113 = Head.CFrame.Position - p101
+                            if v113:Dot(v113) > 1 then
+                                v113 = v113.Unit
+                            end
+                            local v114 = v113 * 25
+                            p100.remoteEvent:FireServer("HitZombie", u112, Head.CFrame.Position, true, v114, "Head", v106.Normal)
+                            if not u112:GetAttribute("WepHitDirection") then
+                                local u115 = tick()
+                                u112:SetAttribute("WepHitID", tick())
+                                u112:SetAttribute("WepHitDirection", v114)
+                                u112:SetAttribute("WepHitPos", v106.Position)
+                                task.delay(0.2, function()
+                                    if u112:GetAttribute("WepHitID") == u115 then
+                                        u112:SetAttribute("WepHitDirection", nil)
+                                        u112:SetAttribute("WepHitPos", nil)
+                                        u112:SetAttribute("WepHitID", nil)
+                                    end
+                                end)
+                            end
                         end
-                        local v114 = v113 * 25
-                        p100.remoteEvent:FireServer("HitZombie", u112, Head.CFrame.Position, true, v114, "Head", v106.Normal)
-                        if not u112:GetAttribute("WepHitDirection") then
-                            local u115 = tick()
-                            u112:SetAttribute("WepHitID", tick())
-                            u112:SetAttribute("WepHitDirection", v114)
-                            u112:SetAttribute("WepHitPos", v106.Position)
-                            task.delay(0.2, function()
-                                if u112:GetAttribute("WepHitID") == u115 then
-                                    u112:SetAttribute("WepHitDirection", nil)
-                                    u112:SetAttribute("WepHitPos", nil)
-                                    u112:SetAttribute("WepHitID", nil)
-                                end
-                            end)
-                        end
-                        -- u10:CastSphere("MeleeHitValid", CFrame.new(p101), Color3.fromRGB(0, 255, 0)) -- Debugging visual
-                        -- u10:CastSphere("PartPosition", CFrame.new(v1 -- Incompleto en el original
                     end
                 end
             end
         end
-        local v127 = v106.Instance.Parent:FindFirstChild("Humanoid") or v106.Instance.Parent.Parent:FindFirstChild("Humanoid")
+        local v127 = v106.Instance.Parent:FindFirstChild("Humanoid") or (v106.Instance.Parent.Parent and v106.Instance.Parent.Parent:FindFirstChild("Humanoid"))
         if v127 and not table.find(p105, v127) then
             table.insert(p105, v127)
             p100.remoteEvent:FireServer("HitPlayer", v127, v106.Position)
@@ -231,3 +394,153 @@ function u1.MeleeHitCheck(p100, p101, p102, p103, p104, p105)
     end
     return 0
 end
+
+local function changeMelee(value)
+   if value then
+      print("Melee: Función de impacto modificada.")
+      MeleeBase.MeleeHitCheck = u1.MeleeHitCheck
+   else
+      print("Melee: Función de impacto restaurada.")
+      MeleeBase.MeleeHitCheck = originalMeleeHitCheck
+   end
+end
+
+-- Toggle para Soporte de Bayoneta
+Window:AddToggle({
+	Title = "Activar Modificador de Bayoneta",
+	Description = "Modifica los ataques de bayoneta para priorizar disparos a la cabeza.",
+	Tab = CombatTab,
+    Default = false,
+	Callback = function(Boolean) 
+		changeBayonet(Boolean)
+        if Boolean then
+            Window:Notify({
+                Title = "Bayoneta",
+                Description = "Modificador de Bayoneta Activado", 
+                Duration = 2
+            })
+        else
+            Window:Notify({
+                Title = "Bayoneta",
+                Description = "Modificador de Bayoneta Desactivado", 
+                Duration = 2
+            })
+        end
+	end,
+}) 
+
+-- Toggle para Soporte de Melee
+Window:AddToggle({
+	Title = "Activar Modificador de Melee",
+	Description = "Modifica los ataques cuerpo a cuerpo para priorizar disparos a la cabeza y 'gib'.",
+	Tab = CombatTab,
+    Default = false,
+	Callback = function(Boolean) 
+		changeMelee(Boolean)
+        if Boolean then
+            Window:Notify({
+                Title = "Melee",
+                Description = "Modificador de Melee Activado", 
+                Duration = 2
+            })
+        else
+            Window:Notify({
+                Title = "Melee",
+                Description = "Modificador de Melee Desactivado", 
+                Duration = 2
+            })
+        end
+	end,
+}) 
+
+---
+## Lógica de Re-ejecución al Reaparecer
+
+local function initializeCombatFeatures()
+    -- Solo inicia Kill Aura si su toggle está activo en la UI
+    if killAuraToggled then
+        task.spawn(createHitBox)
+    end
+    
+    -- Los modificadores de armas se activan/desactivan directamente por los toggles de la UI.
+    -- No es necesario llamarlos incondicionalmente aquí al reaparecer,
+    -- ya que su estado es persistente a través de la UI.
+    -- Sin embargo, si quieres que se 'apliquen' de nuevo por si acaso el juego los resetea,
+    -- podrías leer el estado actual del toggle y volver a llamarlos.
+    -- Por ahora, se asume que los hooks persisten.
+end
+
+-- Conecta la función de inicialización al evento CharacterAdded del jugador local
+-- Esto asegura que las características se re-inicialicen cada vez que el personaje reaparece.
+LocalPlayer.CharacterAdded:Connect(function(character)
+    -- Espera un momento para que el personaje esté completamente configurado
+    character:WaitForChild("HumanoidRootPart", 10) 
+    initializeCombatFeatures()
+end)
+
+-- Llama a la función una vez al inicio, en caso de que el personaje ya esté cargado al ejecutar el script.
+if LocalPlayer.Character then
+    LocalPlayer.Character:WaitForChild("HumanoidRootPart", 10) -- Asegúrate de que HRP esté listo
+    initializeCombatFeatures()
+end
+
+--// Notificación de la UI al cargar
+Window:Notify({
+	Title = "Script Cargado!",
+	Description = "Presiona ALT DERECHO para mostrar/ocultar la UI. ALT IZQUIERDO para minimizar/maximizar.", 
+	Duration = 10
+})
+
+-- Conservamos la sección de "Settings" y sus componentes originales
+--// Pestaña [AJUSTES]
+local Settings = Window:AddTab({
+	Title = "Ajustes",
+	Section = "Combate", -- Se mantiene en la sección "Combate"
+	Icon = "rbxassetid://11293977610",
+})
+
+Window:AddKeybind({
+	Title = "Minimizar Keybind",
+	Description = "Establece la tecla para Minimizar la UI",
+	Tab = Settings,
+	Callback = function(Key) 
+		Window:SetSetting("Keybind", Key)
+	end,
+}) 
+
+Window:AddDropdown({
+	Title = "Establecer Tema",
+	Description = "¡Establece el tema de la librería!",
+	Tab = Settings,
+	Options = {
+		["Modo Claro"] = "Light",
+		["Modo Oscuro"] = "Dark",
+		["Extra Oscuro"] = "Void",
+	},
+	Callback = function(Theme) 
+		Window:SetTheme(Themes[Theme])
+	end,
+}) 
+
+Window:AddToggle({
+	Title = "Desenfoque de UI",
+	Description = "Si está habilitado, tu configuración gráfica de Roblox debe ser 8+ para que funcione.",
+	Default = true,
+	Tab = Settings,
+	Callback = function(Boolean) 
+		Wind
+Window:SetSetting("Blur", Boolean)
+	end,
+}) 
+
+
+Window:AddSlider({
+	Title = "Transparencia de UI",
+	Description = "Establece la transparencia de la interfaz de usuario",
+	Tab = Settings,
+	AllowDecimals = true,
+	MaxValue = 1,
+	Callback = function(Amount) 
+		Window:SetSetting("Transparency", Amount)
+	end,
+}) 
