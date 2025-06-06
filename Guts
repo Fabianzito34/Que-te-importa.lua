@@ -1,0 +1,233 @@
+-- Main Functions
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+-- Kill Aura
+observerOnline = false
+killAuraToggled = false
+isDead = false
+
+local raycastParams = RaycastParams.new()
+raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local params = OverlapParams.new()
+params.FilterDescendantsInstances = {LocalPlayer.Character}
+
+function detectEnemy(hitbox, hrp)
+    print("Detect enemy Start!")
+    while true do
+        if killAuraToggled == false then
+            print("detectEnemy killed!")
+            isDead = false
+            observerOnline = false
+            return nil
+        end
+
+        local parts = workspace:GetPartsInPart(hitbox, params)
+        for i, part in pairs(parts) do
+            if part.parent and part.parent.Name == "m_Zombie" then
+                local Origin = part.parent:WaitForChild("Orig")
+                if Origin.Value ~= nil then
+                    local zombie = Origin.Value:WaitForChild("Zombie")
+                    local childrens = LocalPlayer.Character:GetChildren()
+                    if toolEquip then
+                        local hit = Origin.Value
+                        local zombieHead = workspace:Raycast(hrp.CFrame.Position, hit.Head.CFrame.Position - hrp.CFrame.Position)
+                        local calc = (zombieHead.Position - hrp.CFrame.Position)
+
+                        if calc:Dot(calc) > 1 then
+                            calc = calc.Unit
+                        end
+
+                        if LocalPlayer:DistanceFromCharacter(Origin.Value:FindFirstChild("HumanoidRootPart").CFrame.Position) < 13 then
+                            if zombie.WalkSpeed > 16 then
+                                game:GetService("ReplicatedStorage").Remotes.Gib:FireServer(hit, "Head", hit.Head.CFrame.Position, zombieHead.Normal, true)
+                                game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
+                                game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, hit.Head.CFrame.Position, true, calc * 25, "Head", zombieHead.Normal)
+                            else
+                                if part.Parent:FindFirstChild("Barrel") == nil then
+                                    game:GetService("ReplicatedStorage").Remotes.Gib:FireServer(hit, "Head", hit.Head.CFrame.Position, zombieHead.Normal, true)
+                                    game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
+                                    game:GetService("Workspace").Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, hit.Head.CFrame.Position, true, calc * 25, "Head", zombieHead.Normal)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function createHitBox()
+    if LocalPlayer.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("Hitbox") ~= nil then
+        if observerOnline == false then
+            observerOnline = true
+            detectEnemy(LocalPlayer.Character:WaitForChild("HumanoidRootPart"):FindFirstChild("Hitbox"), LocalPlayer.Character:WaitForChild("HumanoidRootPart"))
+        end
+
+        return true
+    else
+        local torso = LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+        local hitbox = Instance.new("Part", torso)
+        hitbox.Name = "Hitbox"
+        hitbox.Anchored = false
+        hitbox.Massless = true
+        hitbox.CanCollide = false
+        hitbox.CanTouch = false
+        hitbox.Transparency  = 1
+        hitbox.Size = Vector3.new(13, 7, 12.5)
+        hitbox.CFrame = torso.CFrame * CFrame.new(0, 0, -7.8)
+
+        local weld = Instance.new("WeldConstraint", torso)
+        weld.Part0 = hitbox
+        weld.Part1 = LocalPlayer.Character.HumanoidRootPart
+
+        if observerOnline == false then
+            observerOnline = true
+            detectEnemy(hitbox, LocalPlayer.Character:WaitForChild("HumanoidRootPart"))
+        end
+
+        return true
+    end
+end
+
+-- Bayonet Support
+
+local FlintLock = require(game:GetService("ReplicatedStorage").Modules.Weapons:waitForChild("Flintlock"))
+local originFunction_ = FlintLock.BayonetHitCheck
+
+function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
+    local v120 = workspace:Raycast(p116, p117, p118)
+    if v120 then
+        if v120.Instance.Parent.Name == "m_Zombie" then
+            local v121 = p118.FilterDescendantsInstances
+            local v122 = v120.Instance
+            table.insert(v121, v122)
+            p118.FilterDescendantsInstances = v121
+            local v123 = v120.Instance.Parent:FindFirstChild("Orig")
+            if v123 then
+                local Head = ""
+                for i, part in pairs(v120.Instance.Parent:GetChildren()) do
+                    if part.Name == "Head" and part.ClassName == "Part" or part.ClassName == "MeshPart" then
+                        Head = part
+                    end
+                end
+                print(Head)
+                p115.remoteEvent:FireServer("Bayonet_HitZombie", v123.Value, Head.CFrame.Position, true, "Head")
+                local v_u_124 = v123.Value
+                local v_u_125 = tick()
+                v_u_124:SetAttribute("WepHitID", tick())
+                v_u_124:SetAttribute("WepHitDirection", p117 * 10)
+                v_u_124:SetAttribute("WepHitPos", v120.Position)
+                task.delay(0.2, function()
+                    if v_u_124:GetAttribute("WepHitID") == v_u_125 then
+                        v_u_124:SetAttribute("WepHitDirection", nil)
+                        v_u_124:SetAttribute("WepHitPos", nil)
+                        v_u_124:SetAttribute("WepHitID", nil)
+                    end
+                end)
+            end
+            return 1
+        end
+        local v126 = v120.Instance.Parent:FindFirstChild("DoorHit") or v120.Instance:FindFirstChild("BreakGlass")
+        if v126 and not table.find(p119, v126) then
+            table.insert(p119, v126)
+            p115.remoteEvent:FireServer("Bayonet_HitCon", v120.Instance, v120.Position, v120.Normal, v120.Material)
+            return 2
+        end
+        local v127 = v120.Instance.Parent:FindFirstChild("Humanoid") or v120.Instance.Parent.Parent:FindFirstChild("Humanoid")
+        if v127 and not table.find(p119, v127) then
+            table.insert(p119, v127)
+            p115.remoteEvent:FireServer("Bayonet_HitPlayer", v127, v120.Position)
+            return 2
+        end
+    end
+    return 0
+end
+
+function changeBayonet(value)
+   if value then
+      print("Function Changed! - Bayonet")
+      FlintLock.BayonetHitCheck = v_u_1.BayonetHitCheck
+   else
+      FlintLock.BayonetHitCheck = originFunction_
+   end
+end
+
+local MeleeBase = require(game:GetService("ReplicatedStorage").Modules.Weapons:waitForChild("MeleeBase"))
+local originFunction = MeleeBase.MeleeHitCheck
+
+function u1.MeleeHitCheck(p100, p101, p102, p103, p104, p105)
+    local v106 = workspace:Raycast(p101, p102, p103)
+    if v106 then
+        if v106.Instance.Parent.Name == "m_Zombie" then
+            local v107 = p103.FilterDescendantsInstances
+            local v108 = v106.Instance
+            table.insert(v107, v108)
+            p103.FilterDescendantsInstances = v107
+            local v109 = v106.Instance.Parent:FindFirstChild("Orig")
+            if v109 then
+                if p100.sharp and shared.Gib ~= nil then
+                    if v109.Value then
+                        local v110 = v109.Value:FindFirstChild("Zombie")
+                        local v111 = not p100.Stats.HeadshotMulti and 2.3 or p100.Stats.HeadshotMulti
+                        if v110 and v110.Health - p100.Stats.Damage * v111 <= 0 then
+                            shared.Gib(v109.Value, v106.Instance.Name, v106.Position, v106.Normal, true)
+                        end
+                    else
+                        shared.Gib(v109.Value, v106.Instance.Name, v106.Position, v106.Normal, true)
+                    end
+                end
+                if not p104[v109] or p104[v109] < (p100.Stats.MaxHits or 3) then
+                    if p105 then
+                        p100.remoteEvent:FireServer("ThrustCharge", v109.Value, v106.Position, v106.Normal)
+                    else
+
+                        local Head = ""
+                        for i, part in pairs(v106.Instance.Parent:GetChildren()) do
+                            if part.Name == "Head" and part.ClassName == "Part" or part.ClassName == "MeshPart" then
+                                Head = part
+                            end
+                        end
+                        local u112 = v109.Value
+                        local v113 = Head.CFrame.Position - p101
+                        if v113:Dot(v113) > 1 then
+                            v113 = v113.Unit
+                        end
+                        local v114 = v113 * 25
+                        p100.remoteEvent:FireServer("HitZombie", u112, Head.CFrame.Position, true, v114, "Head", v106.Normal)
+                        if not u112:GetAttribute("WepHitDirection") then
+                            local u115 = tick()
+                            u112:SetAttribute("WepHitID", tick())
+                            u112:SetAttribute("WepHitDirection", v114)
+                            u112:SetAttribute("WepHitPos", v106.Position)
+                            task.delay(0.2, function()
+                                if u112:GetAttribute("WepHitID") == u115 then
+                                    u112:SetAttribute("WepHitDirection", nil)
+                                    u112:SetAttribute("WepHitPos", nil)
+                                    u112:SetAttribute("WepHitID", nil)
+                                end
+                            end)
+                        end
+                        -- u10:CastSphere("MeleeHitValid", CFrame.new(p101), Color3.fromRGB(0, 255, 0)) -- Debugging visual
+                        -- u10:CastSphere("PartPosition", CFrame.new(v1 -- Incompleto en el original
+                    end
+                end
+            end
+        end
+        local v127 = v106.Instance.Parent:FindFirstChild("Humanoid") or v106.Instance.Parent.Parent:FindFirstChild("Humanoid")
+        if v127 and not table.find(p105, v127) then
+            table.insert(p105, v127)
+            p100.remoteEvent:FireServer("HitPlayer", v127, v106.Position)
+            return 2
+        end
+        local v126 = v106.Instance.Parent:FindFirstChild("DoorHit") or v106.Instance:FindFirstChild("BreakGlass")
+        if v126 and not table.find(p105, v126) then
+            table.insert(p105, v126)
+            p100.remoteEvent:FireServer("HitCon", v106.Instance, v106.Position, v106.Normal, v106.Material)
+            return 2
+        end
+    end
+    return 0
+end
