@@ -1,123 +1,236 @@
---Servicios
+--// Servicios de Roblox
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
---Librería de UI
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/lxte/lates-lib/main/Main.lua"))()
-local Window = Library:CreateWindow({
-	Title = "Roblox Combat Script", -- Título de la ventana cambiado
-	Theme = "Dark",
-	
-	Size = UDim2.fromOffset(570, 370),
-	Transparency = 0.2,
-	Blurring = true,
-	MinimizeKeybind = Enum.KeyCode.LeftAlt, -- Tecla para minimizar/maximizar
-})
+--// INICIO DE TU NUEVA UI LIBRARY SIMPLE
 
-local Themes = {
-	Light = {
-		--// Frames:
-		Primary = Color3.fromRGB(232, 232, 232),
-		Secondary = Color3.fromRGB(255, 255, 255),
-		Component = Color3.fromRGB(245, 245, 245),
-		Interactables = Color3.fromRGB(235, 235, 235),
+local SimpleUI = {}
+SimpleUI.__index = SimpleUI
 
-		--// Text:
-		Tab = Color3.fromRGB(50, 50, 50),
-		Title = Color3.fromRGB(0, 0, 0),
-		Description = Color3.fromRGB(100, 100, 100),
+-- Propiedades de la UI
+local UI_ROOT_NAME = "SimpleCombatUI"
+local UI_MAIN_FRAME = nil -- Se asignará al crear la ventana
+local UI_VISIBLE = true -- Estado inicial de la UI
+local UI_TOGGLE_KEY = Enum.KeyCode.RightAlt -- Tecla para mostrar/ocultar la UI
 
-		--// Outlines:
-		Shadow = Color3.fromRGB(255, 255, 255),
-		Outline = Color3.fromRGB(210, 210, 210),
-
-		--// Image:
-		Icon = Color3.fromRGB(100, 100, 100),
-	},
-	
-	Dark = {
-		--// Frames:
-		Primary = Color3.fromRGB(30, 30, 30),
-		Secondary = Color3.fromRGB(35, 35, 35),
-		Component = Color3.fromRGB(40, 40, 40),
-		Interactables = Color3.fromRGB(45, 45, 45),
-
-		--// Text:
-		Tab = Color3.fromRGB(200, 200, 200),
-		Title = Color3.fromRGB(240,240,240),
-		Description = Color3.fromRGB(200,200,200),
-
-		--// Outlines:
-		Shadow = Color3.fromRGB(0, 0, 0),
-		Outline = Color3.fromRGB(40, 40, 40),
-
-		--// Image:
-		Icon = Color3.fromRGB(220, 220, 220),
-	},
-	
-	Void = {
-		--// Frames:
-		Primary = Color3.fromRGB(15, 15, 15),
-		Secondary = Color3.fromRGB(20, 20, 20),
-		Component = Color3.fromRGB(25, 25, 25),
-		Interactables = Color3.fromRGB(30, 30, 30),
-
-		--// Text:
-		Tab = Color3.fromRGB(200, 200, 200),
-		Title = Color3.fromRGB(240,240,240),
-		Description = Color3.fromRGB(200,200,200),
-
-		--// Outlines:
-		Shadow = Color3.fromRGB(0, 0, 0),
-		Outline = Color3.fromRGB(40, 40, 40),
-
-		--// Image:
-		Icon = Color3.fromRGB(220, 220, 220),
-	},
-
-}
-
---Configurar el tema predeterminado
-Window:SetTheme(Themes.Dark)
-
---Atajo para mostrar/ocultar la UI
-local uiVisible = true
-local hideShowKeybind = Enum.KeyCode.RightAlt -- Puedes cambiar esta tecla
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent and input.KeyCode == hideShowKeybind then
-        uiVisible = not uiVisible
-        Library:Toggle(uiVisible) -- Usa el método de la librería para mostrar/ocultar
-        Window:Notify({
-            Title = "UI",
-            Description = "UI " .. (uiVisible and "visible" or "oculta"),
-            Duration = 3
-        })
+-- Función para crear la ventana principal de la UI
+function SimpleUI:CreateWindow()
+    -- Eliminar UI existente si hay una
+    local existingUI = LocalPlayer.PlayerGui:FindFirstChild(UI_ROOT_NAME)
+    if existingUI then
+        existingUI:Destroy()
     end
-end)
 
---Secciones de la UI
-Window:AddTabSection({
-	Name = "Combate", -- Nombre de la sección
-	Order = 1,
-})
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = UI_ROOT_NAME
+    ScreenGui.Parent = LocalPlayer.PlayerGui
 
---Pestaña [COMBATE]
-local CombatTab = Window:AddTab({
-	Title = "Funciones de Combate",
-	Section = "Combate",
-	Icon = "rbxassetid://11963373994" -- Puedes cambiar este icono
-})
+    -- Frame principal de la ventana (fondo oscuro)
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 300, 0, 350) -- Tamaño fijo
+    MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -MainFrame.Size.Y.Offset/2) -- Centrado
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Gris oscuro
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true -- Para que la imagen de fondo no se salga
+    MainFrame.Parent = ScreenGui
 
-Window:AddSection({ Name = "Aura Asesina (Kill Aura)", Tab = CombatTab }) 
+    -- Imagen de Snorlax en el fondo (oscurecida)
+    local SnorlaxImage = Instance.new("ImageLabel")
+    SnorlaxImage.Name = "SnorlaxBackground"
+    SnorlaxImage.BackgroundTransparency = 1
+    SnorlaxImage.Image = "rbxassetid://628678667" -- ID de imagen de Snorlax (un poco oscura)
+    SnorlaxImage.ImageColor3 = Color3.fromRGB(150, 150, 150) -- Oscurece la imagen
+    SnorlaxImage.ScaleType = Enum.ScaleType.Fit
+    SnorlaxImage.Size = UDim2.new(1, 0, 1, 0)
+    SnorlaxImage.Position = UDim2.new(0, 0, 0, 0)
+    SnorlaxImage.ZIndex = 0
+    SnorlaxImage.Parent = MainFrame
 
--- Variables de Estado para Kill Aura
+    -- Overlay oscuro para la imagen (más oscuro)
+    local DarkOverlay = Instance.new("Frame")
+    DarkOverlay.Name = "DarkOverlay"
+    DarkOverlay.Size = UDim2.new(1, 0, 1, 0)
+    DarkOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    DarkOverlay.BackgroundTransparency = 0.6 -- Ajusta la transparencia para el efecto oscuro
+    DarkOverlay.BorderSizePixel = 0
+    DarkOverlay.ZIndex = 1
+    DarkOverlay.Parent = MainFrame
+    
+    -- UIListLayout para organizar los elementos de la ventana
+    local ListLayout = Instance.new("UIListLayout")
+    ListLayout.Name = "MainLayout"
+    ListLayout.Padding = UDim.new(0, 5)
+    ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    ListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ListLayout.Parent = MainFrame
+
+    -- Título de la UI
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "Title"
+    TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+    TitleLabel.Text = "Roblox Combat Features"
+    TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+    TitleLabel.Font = Enum.Font.SourceSansBold
+    TitleLabel.TextSize = 20
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.ZIndex = 2
+    TitleLabel.Parent = MainFrame
+
+    -- Frame para los elementos interactivos (botones, toggles)
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Name = "ContentFrame"
+    ContentFrame.Size = UDim2.new(1, -20, 1, -40) -- Un poco más pequeño que el MainFrame
+    ContentFrame.Position = UDim2.new(0, 10, 0, 35)
+    ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    ContentFrame.BackgroundTransparency = 0.5
+    ContentFrame.BorderSizePixel = 0
+    ContentFrame.ZIndex = 2
+    ContentFrame.Parent = MainFrame
+
+    local ContentListLayout = Instance.new("UIListLayout")
+    ContentListLayout.Name = "ContentLayout"
+    ContentListLayout.Padding = UDim.new(0, 10)
+    ContentListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    ContentListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    ContentListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ContentListLayout.Parent = ContentFrame
+
+    UI_MAIN_FRAME = MainFrame -- Guardar referencia al frame principal
+
+    -- Función para mostrar/ocultar la UI
+    function SimpleUI:ToggleUI(visible)
+        UI_VISIBLE = visible
+        local targetTransparency = visible and 0 or 1
+        local targetPosition = visible and UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -MainFrame.Size.Y.Offset/2)
+                                       or UDim2.new(0.5, -MainFrame.Size.X.Offset/2, -1, 0) -- Mueve fuera de pantalla
+        
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        
+        -- Tween para transparencia del frame principal
+        local transparencyTween = TweenService:Create(MainFrame, tweenInfo, {BackgroundTransparency = targetTransparency})
+        transparencyTween:Play()
+
+        -- Tween para posición del frame principal
+        local positionTween = TweenService:Create(MainFrame, tweenInfo, {Position = targetPosition})
+        positionTween:Play()
+
+        -- Tween para transparencia de los elementos hijos
+        for _, child in ipairs(MainFrame:GetChildren()) do
+            if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+                 if child.Name ~= "SnorlaxBackground" and child.Name ~= "DarkOverlay" then -- Excluir la imagen de fondo y su overlay
+                    local childTransparency = visible and 0 or 1
+                    local childTween = TweenService:Create(child, tweenInfo, {BackgroundTransparency = childTransparency, TextTransparency = childTransparency, ImageTransparency = childTransparency})
+                    childTween:Play()
+                 end
+            end
+        end
+    end
+
+    -- Escuchar la tecla para mostrar/ocultar
+    UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+        if not gameProcessedEvent and input.KeyCode == UI_TOGGLE_KEY then
+            self:ToggleUI(not UI_VISIBLE)
+        end
+    end)
+
+    return ContentFrame -- Devuelve el ContentFrame para añadir elementos
+end
+
+-- Función para añadir un Toggle a la UI
+function SimpleUI:AddToggle(parentFrame, title, description, defaultState, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = "Toggle"
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    ToggleFrame.BackgroundTransparency = 0.5
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Parent = parentFrame
+    
+    local ToggleListLayout = Instance.new("UIListLayout")
+    ToggleListLayout.Name = "ToggleLayout"
+    ToggleListLayout.Padding = UDim.new(0, 2)
+    ToggleListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    ToggleListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    ToggleListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ToggleListLayout.Parent = ToggleFrame
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "Title"
+    TitleLabel.Size = UDim2.new(0.8, 0, 0, 20)
+    TitleLabel.Position = UDim2.new(0, 10, 0, 5)
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.Font = Enum.Font.SourceSansSemibold
+    TitleLabel.TextSize = 16
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Parent = ToggleFrame
+
+    local DescLabel = Instance.new("TextLabel")
+    DescLabel.Name = "Description"
+    DescLabel.Size = UDim2.new(0.8, 0, 0, 15)
+    DescLabel.Position = UDim2.new(0, 10, 0, 25)
+    DescLabel.Text = description
+    DescLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    DescLabel.Font = Enum.Font.SourceSansLight
+    DescLabel.TextSize = 12
+    DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+    DescLabel.BackgroundTransparency = 1
+    DescLabel.Parent = ToggleFrame
+
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Size = UDim2.new(0, 50, 0, 25)
+    ToggleButton.Position = UDim2.new(1, -60, 0.5, -12.5) -- Posición a la derecha
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80) -- Color por defecto (OFF)
+    ToggleButton.Text = "OFF"
+    ToggleButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ToggleButton.Font = Enum.Font.SourceSansBold
+    ToggleButton.TextSize = 14
+    ToggleButton.ZIndex = 2
+    ToggleButton.Parent = ToggleFrame
+    
+    local currentState = defaultState
+    local function updateToggleVisual()
+        if currentState then
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Verde (ON)
+            ToggleButton.Text = "ON"
+        else
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80) -- Gris (OFF)
+            ToggleButton.Text = "OFF"
+        end
+    end
+
+    updateToggleVisual() -- Establecer el estado visual inicial
+
+    ToggleButton.MouseButton1Click:Connect(function()
+        currentState = not currentState
+        updateToggleVisual()
+        if callback then
+            callback(currentState)
+        end
+    end)
+    
+    -- Establecer el callback inicial para que la función se active/desactive al inicio
+    if callback then
+        callback(currentState)
+    end
+end
+
+local UI = SimpleUI.new() -- Instancia de la UI
+
+-- FIN DE TU NUEVA UI LIBRARY SIMPLE
+--// Kill Aura
 local observerOnline = false
-local killAuraToggled = false
-local toolEquip = true -- Asume que una herramienta está equipada por defecto para Kill Aura
+local killAuraToggled = false -- Controlado por la UI ahora
+local toolEquip = true 
 local isDead = false 
 
 local raycastParams = RaycastParams.new()
@@ -130,7 +243,6 @@ params.FilterDescendantsInstances = {LocalPlayer.Character}
 local function detectEnemy(hitbox, hrp)
     print("Kill Aura: Iniciando detección de enemigos!")
     while true do
-        -- Si killAuraToggled es falso, o si el personaje/hitbox no existen (ej. al morir)
         if killAuraToggled == false or not hrp.Parent or not hitbox.Parent then 
             print("Kill Aura: Detección de enemigos detenida.")
             isDead = false
@@ -178,7 +290,7 @@ local function detectEnemy(hitbox, hrp)
                 end
             end
         end
-        task.wait(0.05)
+        RunService.Heartbeat:Wait() -- Usar Heartbeat:Wait() para loops en lugar de task.wait() para mejor rendimiento en loops continuos.
     end
 end
 
@@ -218,34 +330,6 @@ local function createHitBox()
         return true
     end
 end
-
--- Toggle para Kill Aura
-Window:AddToggle({
-	Title = "Activar Kill Aura",
-	Description = "Ataca automáticamente a los zombies, priorizando disparos a la cabeza.",
-	Tab = CombatTab,
-    Default = false, -- Se inicia desactivado por defecto en la UI
-	Callback = function(Boolean) 
-		killAuraToggled = Boolean
-        if Boolean then
-            task.spawn(createHitBox) -- Iniciar si está activado
-            Window:Notify({
-                Title = "Kill Aura",
-                Description = "Kill Aura Activado", 
-                Duration = 2
-            })
-        else
-            Window:Notify({
-                Title = "Kill Aura",
-                Description = "Kill Aura Desactivado", 
-                Duration = 2
-            })
-        end
-	end,
-}) 
-
-Window:AddSection({ Name = "Modificadores de Arma", Tab = CombatTab }) 
-
 -- Soporte de Bayoneta
 local FlintLock = require(ReplicatedStorage.Modules.Weapons:waitForChild("Flintlock"))
 local originalBayonetHitCheck = FlintLock.BayonetHitCheck
@@ -405,69 +489,54 @@ local function changeMelee(value)
    end
 end
 
--- Toggle para Soporte de Bayoneta
-Window:AddToggle({
-	Title = "Activar Modificador de Bayoneta",
-	Description = "Modifica los ataques de bayoneta para priorizar disparos a la cabeza.",
-	Tab = CombatTab,
-    Default = false,
-	Callback = function(Boolean) 
-		changeBayonet(Boolean)
-        if Boolean then
-            Window:Notify({
-                Title = "Bayoneta",
-                Description = "Modificador de Bayoneta Activado", 
-                Duration = 2
-            })
-        else
-            Window:Notify({
-                Title = "Bayoneta",
-                Description = "Modificador de Bayoneta Desactivado", 
-                Duration = 2
-            })
-        end
-	end,
-}) 
+---
+## Integración de UI y Funciones de Combate
 
--- Toggle para Soporte de Melee
-Window:AddToggle({
-	Title = "Activar Modificador de Melee",
-	Description = "Modifica los ataques cuerpo a cuerpo para priorizar disparos a la cabeza y 'gib'.",
-	Tab = CombatTab,
-    Default = false,
-	Callback = function(Boolean) 
-		changeMelee(Boolean)
-        if Boolean then
-            Window:Notify({
-                Title = "Melee",
-                Description = "Modificador de Melee Activado", 
-                Duration = 2
-            })
-        else
-            Window:Notify({
-                Title = "Melee",
-                Description = "Modificador de Melee Desactivado", 
-                Duration = 2
-            })
-        end
-	end,
-}) 
+-- Crear la ventana principal de la UI
+local UIContentFrame = UI:CreateWindow()
+
+-- Añadir Toggles a la UI
+UI:AddToggle(UIContentFrame, "Activar Kill Aura", "Ataca automáticamente a los zombies cercanos.", false, function(Boolean)
+    killAuraToggled = Boolean
+    if Boolean then
+        task.spawn(createHitBox)
+        print("Kill Aura: Activado.")
+    else
+        print("Kill Aura: Desactivado.")
+    end
+end)
+
+UI:AddToggle(UIContentFrame, "Modificador de Bayoneta", "Prioriza headshots con bayonetas.", false, function(Boolean)
+    changeBayonet(Boolean)
+    if Boolean then
+        print("Modificador de Bayoneta: Activado.")
+    else
+        print("Modificador de Bayoneta: Desactivado.")
+    end
+end)
+
+UI:AddToggle(UIContentFrame, "Modificador de Melee", "Prioriza headshots y 'gib' con ataques melee.", false, function(Boolean)
+    changeMelee(Boolean)
+    if Boolean then
+        print("Modificador de Melee: Activado.")
+    else
+        print("Modificador de Melee: Desactivado.")
+    end
+end)
 
 ---
 ## Lógica de Re-ejecución al Reaparecer
 
 local function initializeCombatFeatures()
-    -- Solo inicia Kill Aura si su toggle está activo en la UI
+    -- Si Kill Aura estaba activado por la UI, se reinicia al reaparecer.
+    -- Las funciones de modificador de armas no necesitan ser llamadas aquí
+    -- porque los hooks (`FlintLock.BayonetHitCheck = ...`) persisten
+    -- a menos que el juego las reestablezca explícitamente, lo cual es raro para hooks.
+    -- Si notas que los modificadores de arma se desactivan al morir,
+    -- podrías almacenar su estado en una variable y restablecerlo aquí.
     if killAuraToggled then
         task.spawn(createHitBox)
     end
-    
-    -- Los modificadores de armas se activan/desactivan directamente por los toggles de la UI.
-    -- No es necesario llamarlos incondicionalmente aquí al reaparecer,
-    -- ya que su estado es persistente a través de la UI.
-    -- Sin embargo, si quieres que se 'apliquen' de nuevo por si acaso el juego los resetea,
-    -- podrías leer el estado actual del toggle y volver a llamarlos.
-    -- Por ahora, se asume que los hooks persisten.
 end
 
 -- Conecta la función de inicialización al evento CharacterAdded del jugador local
@@ -480,67 +549,10 @@ end)
 
 -- Llama a la función una vez al inicio, en caso de que el personaje ya esté cargado al ejecutar el script.
 if LocalPlayer.Character then
-    LocalPlayer.Character:WaitForChild("HumanoidRootPart", 10) -- Asegúrate de que HRP esté listo
+    LocalPlayer.Character:WaitForChild("HumanoidRootPart", 10) 
     initializeCombatFeatures()
 end
 
---Notificación de la UI al cargar
-Window:Notify({
-	Title = "Script Cargado!",
-	Description = "Presiona ALT DERECHO para mostrar/ocultar la UI. ALT IZQUIERDO para minimizar/maximizar.", 
-	Duration = 10
-})
-
--- Conservamos la sección de "Settings" y sus componentes originales
---Pestaña [AJUSTES]
-local Settings = Window:AddTab({
-	Title = "Ajustes",
-	Section = "Combate", -- Se mantiene en la sección "Combate"
-	Icon = "rbxassetid://11293977610",
-})
-
-Window:AddKeybind({
-	Title = "Minimizar Keybind",
-	Description = "Establece la tecla para Minimizar la UI",
-	Tab = Settings,
-	Callback = function(Key) 
-		Window:SetSetting("Keybind", Key)
-	end,
-}) 
-
-Window:AddDropdown({
-	Title = "Establecer Tema",
-	Description = "¡Establece el tema de la librería!",
-	Tab = Settings,
-	Options = {
-		["Modo Claro"] = "Light",
-		["Modo Oscuro"] = "Dark",
-		["Extra Oscuro"] = "Void",
-	},
-	Callback = function(Theme) 
-		Window:SetTheme(Themes[Theme])
-	end,
-}) 
-
-Window:AddToggle({
-	Title = "Desenfoque de UI",
-	Description = "Si está habilitado, tu configuración gráfica de Roblox debe ser 8+ para que funcione.",
-	Default = true,
-	Tab = Settings,
-	Callback = function(Boolean) 
-		Wind
-Window:SetSetting("Blur", Boolean)
-	end,
-}) 
-
-
-Window:AddSlider({
-	Title = "Transparencia de UI",
-	Description = "Establece la transparencia de la interfaz de usuario",
-	Tab = Settings,
-	AllowDecimals = true,
-	MaxValue = 1,
-	Callback = function(Amount) 
-		Window:SetSetting("Transparency", Amount)
-	end,
-}) 
+-- Asegurarse de que la UI esté visible al inicio
+UI:ToggleUI(true)
+print("UI cargada y lista. Presiona ALT DERECHO para ocultar/mostrar.")
