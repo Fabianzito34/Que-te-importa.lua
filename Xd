@@ -1,4 +1,6 @@
 
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -20,260 +22,7 @@ local SilentAimSettings = {
     ShowTargetBox = false
 }
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "VIXC3_MobileSilentAimUI"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
-MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
-
-local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
-UIAspectRatioConstraint.AspectRatio = 0.75
-UIAspectRatioConstraint.Parent = MainFrame
-
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 1, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.TextSize = 22
-TitleLabel.Text = "VIXC 3 Mobile Silent Aim"
-TitleLabel.Parent = TitleBar
-
-local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 50, 1, 0)
-CloseButton.Position = UDim2.new(1, -50, 0, 0)
-CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 20
-CloseButton.Text = "X"
-CloseButton.Parent = TitleBar
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui.Enabled = not ScreenGui.Enabled
-end)
-
-local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1, 0, 1, -40)
-ScrollingFrame.Position = UDim2.new(0, 0, 0, 40)
-ScrollingFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ScrollingFrame.BorderSizePixel = 0
-ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
-ScrollingFrame.ScrollBarThickness = 8
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollingFrame.Parent = MainFrame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.Parent = ScrollingFrame
-
-local function UpdateCanvasSize()
-    local contentHeight = UIListLayout.AbsoluteContentSize.Y
-    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, contentHeight + UIListLayout.Padding.Offset * 2)
-end
-UIListLayout.ChildAdded:Connect(UpdateCanvasSize)
-UIListLayout.ChildRemoved:Connect(UpdateCanvasSize)
-UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvasSize)
-
-local function CreateToggleButton(parent, text, settingKey)
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0.95, 0, 0, 50)
-    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Button.Font = Enum.Font.SourceSansBold
-    Button.TextSize = 18
-    Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
-    Button.Parent = parent
-    Button.CornerRadius = UDim.new(0, 8)
-
-    local function updateText()
-        Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
-        if SilentAimSettings[settingKey] then
-            Button.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        else
-            Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        end
-        UpdateCanvasSize()
-    end
-
-    Button.MouseButton1Click:Connect(function()
-        SilentAimSettings[settingKey] = not SilentAimSettings[settingKey]
-        updateText()
-    end)
-
-    updateText()
-    return Button
-end
-
-local function CreateDropdown(parent, text, settingKey, values)
-    local DropdownFrame = Instance.new("Frame")
-    DropdownFrame.Size = UDim2.new(0.95, 0, 0, 50)
-    DropdownFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    DropdownFrame.BorderSizePixel = 0
-    DropdownFrame.Parent = parent
-    DropdownFrame.CornerRadius = UDim.new(0, 8)
-
-    local CurrentSelection = Instance.new("TextLabel")
-    CurrentSelection.Size = UDim2.new(1, -60, 1, 0)
-    CurrentSelection.BackgroundTransparency = 1
-    CurrentSelection.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CurrentSelection.Font = Enum.Font.SourceSansBold
-    CurrentSelection.TextSize = 18
-    CurrentSelection.TextXAlignment = Enum.TextXAlignment.Left
-    CurrentSelection.Text = text .. ": " .. SilentAimSettings[settingKey]
-    CurrentSelection.Parent = DropdownFrame
-
-    local ArrowButton = Instance.new("TextButton")
-    ArrowButton.Size = UDim2.new(0, 50, 1, 0)
-    ArrowButton.Position = UDim2.new(1, -50, 0, 0)
-    ArrowButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    ArrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ArrowButton.Font = Enum.Font.SourceSansBold
-    ArrowButton.TextSize = 20
-    ArrowButton.Text = "▼"
-    ArrowButton.Parent = DropdownFrame
-    ArrowButton.CornerRadius = UDim.new(0, 8)
-
-    local OptionsFrame = Instance.new("Frame")
-    OptionsFrame.Size = UDim2.new(1, 0, 0, 50 * #values)
-    OptionsFrame.Position = UDim2.new(0, 0, 1, 0)
-    OptionsFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    OptionsFrame.BorderSizePixel = 0
-    OptionsFrame.ZIndex = 2
-    OptionsFrame.Visible = false
-    OptionsFrame.Parent = DropdownFrame
-    OptionsFrame.CornerRadius = UDim.new(0, 8)
-
-    local OptionsLayout = Instance.new("UIListLayout")
-    OptionsLayout.Padding = UDim.new(0, 0)
-    OptionsLayout.FillDirection = Enum.FillDirection.Vertical
-    OptionsLayout.Parent = OptionsFrame
-
-    for _, value in ipairs(values) do
-        local OptionButton = Instance.new("TextButton")
-        OptionButton.Size = UDim2.new(1, 0, 0, 50)
-        OptionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        OptionButton.Font = Enum.Font.SourceSans
-        OptionButton.TextSize = 18
-        OptionButton.Text = value
-        OptionButton.Parent = OptionsFrame
-        OptionButton.CornerRadius = UDim.new(0, 8)
-
-        OptionButton.MouseButton1Click:Connect(function()
-            SilentAimSettings[settingKey] = value
-            CurrentSelection.Text = text .. ": " .. SilentAimSettings[settingKey]
-            OptionsFrame.Visible = false
-            UpdateCanvasSize()
-        end)
-    end
-
-    ArrowButton.MouseButton1Click:Connect(function()
-        OptionsFrame.Visible = not OptionsFrame.Visible
-        UpdateCanvasSize()
-    end)
-    UpdateCanvasSize()
-end
-
-local function CreateSlider(parent, text, settingKey, min, max, rounding)
-    local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(0.95, 0, 0, 70)
-    SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    SliderFrame.BorderSizePixel = 0
-    SliderFrame.Parent = parent
-    SliderFrame.CornerRadius = UDim.new(0, 8)
-
-    local SliderLabel = Instance.new("TextLabel")
-    SliderLabel.Size = UDim2.new(1, 0, 0.4, 0)
-    SliderLabel.BackgroundTransparency = 1
-    SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    SliderLabel.Font = Enum.Font.SourceSansBold
-    SliderLabel.TextSize = 18
-    SliderLabel.Text = text .. ": " .. tostring(math.floor(SilentAimSettings[settingKey] * (10 ^ rounding)) / (10 ^ rounding))
-    SliderLabel.Parent = SliderFrame
-
-    local Slider = Instance.new("Frame")
-    Slider.Size = UDim2.new(0.9, 0, 0, 15)
-    Slider.Position = UDim2.new(0.05, 0, 0.5, 0)
-    Slider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    Slider.BorderSizePixel = 1
-    Slider.BorderColor3 = Color3.fromRGB(20, 20, 20)
-    Slider.Parent = SliderFrame
-    Slider.CornerRadius = UDim.new(0, 8)
-
-    local SliderHandle = Instance.new("Frame")
-    SliderHandle.Size = UDim2.new(0, 20, 1, 0)
-    SliderHandle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    SliderHandle.BorderSizePixel = 0
-    SliderHandle.Parent = Slider
-    SliderHandle.CornerRadius = UDim.new(0, 8)
-
-    local dragging = false
-    local startX = 0
-    local startValue = 0
-
-    SliderHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            startX = input.Position.X
-            startValue = SilentAimSettings[settingKey]
-            SliderHandle.BackgroundTransparency = 0.5
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local mouseX = input.Position.X
-            local sliderAbsoluteX = Slider.AbsolutePosition.X
-            local sliderAbsoluteWidth = Slider.AbsoluteSize.X
-            
-            local relativeX = math.clamp((mouseX - sliderAbsoluteX) / sliderAbsoluteWidth, 0, 1)
-
-            local newValue = min + (max - min) * relativeX
-            SilentAimSettings[settingKey] = math.floor(newValue * (10 ^ rounding)) / (10 ^ rounding)
-            
-            local handleX = math.clamp((SilentAimSettings[settingKey] - min) / (max - min), 0, 1)
-            SliderHandle.Position = UDim2.new(handleX, 0, 0, 0)
-            SliderLabel.Text = text .. ": " .. tostring(SilentAimSettings[settingKey])
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            SliderHandle.BackgroundTransparency = 0
-        end
-    end)
-    
-    local initialRelativeX = (SilentAimSettings[settingKey] - min) / (max - min)
-    SliderHandle.Position = UDim2.new(initialRelativeX, 0, 0, 0)
-    UpdateCanvasSize()
-end
-
-CreateToggleButton(ScrollingFrame, "Silent Aim", "Enabled")
-CreateDropdown(ScrollingFrame, "Target Part", "TargetPart", {"Head", "HumanoidRootPart", "Random"})
-CreateDropdown(ScrollingFrame, "Method", "SilentAimMethod", {"Raycast", "FindPartOnRay", "Mouse.Hit"})
-CreateSlider(ScrollingFrame, "FOV Radius", "FOVRadius", 0, 360, 0)
-CreateToggleButton(ScrollingFrame, "Team Check", "TeamCheck")
-CreateToggleButton(ScrollingFrame, "Visible Check", "VisibleCheck")
-CreateSlider(ScrollingFrame, "Hit Chance", "HitChance", 0, 100, 0)
-CreateSlider(ScrollingFrame, "Prediction Amount", "PredictionAmount", 0, 1, 3)
-CreateToggleButton(ScrollingFrame, "Show FOV Circle", "ShowFOV")
-CreateToggleButton(ScrollingFrame, "Show Target Box", "ShowTargetBox")
+local ValidTargetParts = {"Head", "HumanoidRootPart"}
 
 local fov_circle = Drawing.new("Circle")
 fov_circle.Thickness = 1
@@ -291,40 +40,6 @@ mouse_box.Filled = false
 mouse_box.Visible = false
 mouse_box.ZIndex = 999
 mouse_box.Color = Color3.fromRGB(54, 57, 241)
-
-RunService.RenderStepped:Connect(function()
-    if SilentAimSettings.ShowFOV then
-        fov_circle.Visible = true
-        fov_circle.Radius = SilentAimSettings.FOVRadius
-        fov_circle.Position = UserInputService:GetMouseLocation()
-    else
-        fov_circle.Visible = false
-    end
-
-    if SilentAimSettings.ShowTargetBox and SilentAimSettings.Enabled then
-        local closestPlayer = getClosestPlayer()
-        if closestPlayer then
-            local rootPart = closestPlayer.Parent:FindFirstChild("HumanoidRootPart") or closestPlayer
-            if rootPart then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                if onScreen then
-                    mouse_box.Visible = true
-                    mouse_box.Position = Vector2.new(screenPos.X, screenPos.Y)
-                else
-                    mouse_box.Visible = false
-                end
-            else
-                mouse_box.Visible = false
-            end
-        else
-            mouse_box.Visible = false
-        end
-    else
-        mouse_box.Visible = false
-    end
-end)
-
-local ValidTargetParts = {"Head", "HumanoidRootPart"}
 
 local function CalculateChance(Percentage)
     Percentage = math.floor(Percentage)
@@ -399,6 +114,140 @@ local function getClosestPlayer()
     end
     return ClosestTarget
 end
+
+local Window = Fluent:CreateWindow("VIXC 3 Silent Aim")
+
+local MainTab = Window:AddTab("Principal")
+
+local MainSection = MainTab:AddSection("Configuración General")
+
+MainSection:AddToggle("EnabledToggle")
+    :SetName("Habilitar Silent Aim")
+    :SetValue(SilentAimSettings.Enabled)
+    :OnChanged(function(value)
+        SilentAimSettings.Enabled = value
+    end)
+
+MainSection:AddDropdown("TargetPartDropdown")
+    :SetName("Parte del Objetivo")
+    :SetDescription("Elige la parte del cuerpo a la que apuntará el Silent Aim.")
+    :AddOption("Head")
+    :AddOption("HumanoidRootPart")
+    :AddOption("Random")
+    :SetValue(SilentAimSettings.TargetPart)
+    :OnChanged(function(value)
+        SilentAimSettings.TargetPart = value
+    end)
+
+MainSection:AddDropdown("MethodDropdown")
+    :SetName("Método de Silent Aim")
+    :SetDescription("Selecciona el método de detección para el Silent Aim.")
+    :AddOption("Raycast")
+    :AddOption("FindPartOnRay")
+    :AddOption("Mouse.Hit")
+    :SetValue(SilentAimSettings.SilentAimMethod)
+    :OnChanged(function(value)
+        SilentAimSettings.SilentAimMethod = value
+    end)
+
+MainSection:AddToggle("TeamCheckToggle")
+    :SetName("Verificación de Equipo")
+    :SetValue(SilentAimSettings.TeamCheck)
+    :OnChanged(function(value)
+        SilentAimSettings.TeamCheck = value
+    end)
+
+MainSection:AddToggle("VisibleCheckToggle")
+    :SetName("Verificación de Visibilidad")
+    :SetValue(SilentAimSettings.VisibleCheck)
+    :OnChanged(function(value)
+        SilentAimSettings.VisibleCheck = value
+    end)
+
+local AdjustmentsSection = MainTab:AddSection("Ajustes Fino")
+
+AdjustmentsSection:AddSlider("FOVRadiusSlider")
+    :SetName("Radio de FOV")
+    :SetDescription("Define el radio del campo de visión para encontrar objetivos.")
+    :SetMin(0)
+    :SetMax(360)
+    :SetUnit("px")
+    :SetValue(SilentAimSettings.FOVRadius)
+    :OnChanged(function(value)
+        SilentAimSettings.FOVRadius = value
+    end)
+
+AdjustmentsSection:AddSlider("HitChanceSlider")
+    :SetName("Probabilidad de Impacto")
+    :SetDescription("Porcentaje de posibilidades de que el Silent Aim funcione.")
+    :SetMin(0)
+    :SetMax(100)
+    :SetUnit("%")
+    :SetValue(SilentAimSettings.HitChance)
+    :OnChanged(function(value)
+        SilentAimSettings.HitChance = value
+    end)
+
+AdjustmentsSection:AddSlider("PredictionAmountSlider")
+    :SetName("Cantidad de Predicción")
+    :SetDescription("Ajusta la predicción de movimiento para el método Mouse.Hit.")
+    :SetMin(0)
+    :SetMax(1)
+    :SetUnit("s")
+    :SetValue(SilentAimSettings.PredictionAmount)
+    :SetRounding(3)
+    :OnChanged(function(value)
+        SilentAimSettings.PredictionAmount = value
+    end)
+
+local VisualsTab = Window:AddTab("Visuales")
+local VisualsSection = VisualsTab:AddSection("Opciones Visuales")
+
+VisualsSection:AddToggle("ShowFOVToggle")
+    :SetName("Mostrar Círculo FOV")
+    :SetValue(SilentAimSettings.ShowFOV)
+    :OnChanged(function(value)
+        SilentAimSettings.ShowFOV = value
+    end)
+
+VisualsSection:AddToggle("ShowTargetBoxToggle")
+    :SetName("Mostrar Caja de Objetivo")
+    :SetValue(SilentAimSettings.ShowTargetBox)
+    :OnChanged(function(value)
+        SilentAimSettings.ShowTargetBox = value
+    end)
+
+RunService.RenderStepped:Connect(function()
+    if SilentAimSettings.ShowFOV then
+        fov_circle.Visible = true
+        fov_circle.Radius = SilentAimSettings.FOVRadius
+        fov_circle.Position = UserInputService:GetMouseLocation()
+    else
+        fov_circle.Visible = false
+    end
+
+    if SilentAimSettings.ShowTargetBox and SilentAimSettings.Enabled then
+        local closestPlayer = getClosestPlayer()
+        if closestPlayer then
+            local rootPart = closestPlayer.Parent:FindFirstChild("HumanoidRootPart") or closestPlayer
+            if rootPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    mouse_box.Visible = true
+                    mouse_box.Position = Vector2.new(screenPos.X, screenPos.Y)
+                else
+                    mouse_box.Visible = false
+                end
+            else
+                mouse_box.Visible = false
+            end
+        else
+            mouse_box.Visible = false
+        end
+    else
+        mouse_box.Visible = false
+    end
+end)
 
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
