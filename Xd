@@ -1,6 +1,11 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
 local Window = Fluent:CreateWindow({
     Title = "Fluent " .. Fluent.Version,
@@ -13,11 +18,9 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+    Main = Window:AddTab({ Title = "Main" }),
+    Settings = Window:AddTab({ Title = "Settings" })
 }
-
-local Options = Fluent.Options
 
 local SilentAimSettings = {
     Enabled = false,
@@ -32,13 +35,77 @@ local SilentAimSettings = {
     ShowTargetBox = false
 }
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 local ValidTargetParts = {"Head", "HumanoidRootPart"}
+
+Tabs.Main:AddSection("Silent Aim Settings")
+Tabs.Main:AddToggle("SilentAimEnabled", {
+    Title = "Silent Aim Enabled",
+    Default = SilentAimSettings.Enabled,
+    Callback = function(value) SilentAimSettings.Enabled = value end
+})
+
+Tabs.Main:AddDropdown("TargetPartDropdown", {
+    Title = "Target Part",
+    Values = {"Head", "HumanoidRootPart", "Random"},
+    Default = SilentAimSettings.TargetPart,
+    Callback = function(value) SilentAimSettings.TargetPart = value end
+})
+
+Tabs.Main:AddDropdown("SilentAimMethodDropdown", {
+    Title = "Silent Aim Method",
+    Values = {"Raycast", "FindPartOnRay", "Mouse.Hit"},
+    Default = SilentAimSettings.SilentAimMethod,
+    Callback = function(value) SilentAimSettings.SilentAimMethod = value end
+})
+
+Tabs.Main:AddSlider("FOVRadiusSlider", {
+    Title = "FOV Radius",
+    Min = 1,
+    Max = 500,
+    Default = SilentAimSettings.FOVRadius,
+    Callback = function(value) SilentAimSettings.FOVRadius = value end
+})
+
+Tabs.Main:AddToggle("TeamCheckToggle", {
+    Title = "Team Check",
+    Default = SilentAimSettings.TeamCheck,
+    Callback = function(value) SilentAimSettings.TeamCheck = value end
+})
+
+Tabs.Main:AddToggle("VisibleCheckToggle", {
+    Title = "Visible Check",
+    Default = SilentAimSettings.VisibleCheck,
+    Callback = function(value) SilentAimSettings.VisibleCheck = value end
+})
+
+Tabs.Main:AddSlider("HitChanceSlider", {
+    Title = "Hit Chance %",
+    Min = 0,
+    Max = 100,
+    Default = SilentAimSettings.HitChance,
+    Callback = function(value) SilentAimSettings.HitChance = value end
+})
+
+Tabs.Main:AddSlider("PredictionSlider", {
+    Title = "Prediction Amount",
+    Min = 0,
+    Max = 1,
+    Increment = 0.01,
+    Default = SilentAimSettings.PredictionAmount,
+    Callback = function(value) SilentAimSettings.PredictionAmount = value end
+})
+
+Tabs.Main:AddToggle("ShowFOVToggle", {
+    Title = "Show FOV Circle",
+    Default = SilentAimSettings.ShowFOV,
+    Callback = function(value) SilentAimSettings.ShowFOV = value end
+})
+
+Tabs.Main:AddToggle("ShowTargetBoxToggle", {
+    Title = "Show Target Box",
+    Default = SilentAimSettings.ShowTargetBox,
+    Callback = function(value) SilentAimSettings.ShowTargetBox = value end
+})
 
 local fov_circle = Drawing.new("Circle")
 fov_circle.Thickness = 1
@@ -58,7 +125,7 @@ mouse_box.ZIndex = 999
 mouse_box.Color = Color3.fromRGB(54, 57, 241)
 
 local function CalculateChance(Percentage)
-    local chance = math.random()
+    local chance = Random.new():NextNumber(0, 1)
     return chance <= Percentage / 100
 end
 
@@ -75,12 +142,16 @@ local function IsPlayerVisible(Player)
     local PlayerCharacter = Player.Character
     local LocalPlayerCharacter = LocalPlayer.Character
     if not (PlayerCharacter and LocalPlayerCharacter) then return false end
+    
     local PlayerRoot = PlayerCharacter:FindFirstChild("HumanoidRootPart")
     if not PlayerRoot then return false end
+    
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {LocalPlayerCharacter, PlayerCharacter}
+    
     local rayResult = workspace:Raycast(Camera.CFrame.Position, (PlayerRoot.Position - Camera.CFrame.Position).Unit * 1000, raycastParams)
+    
     return rayResult and rayResult.Instance and rayResult.Instance:IsDescendantOf(PlayerCharacter)
 end
 
@@ -88,22 +159,33 @@ local function getClosestPlayer()
     local ClosestTarget = nil
     local SmallestDistance = math.huge
     local MousePosition = UserInputService:GetMouseLocation()
+
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player == LocalPlayer then continue end
         if SilentAimSettings.TeamCheck and Player.Team == LocalPlayer.Team then continue end
+
         local Character = Player.Character
         if not Character then continue end
+        
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
         if not Humanoid or Humanoid.Health <= 0 then continue end
-        local targetPart = SilentAimSettings.TargetPart == "Random"
-            and Character:FindFirstChild(ValidTargetParts[math.random(1, #ValidTargetParts)])
-            or Character:FindFirstChild(SilentAimSettings.TargetPart)
+
+        local targetPart = nil
+        if SilentAimSettings.TargetPart == "Random" then
+            targetPart = Character:FindFirstChild(ValidTargetParts[math.random(1, #ValidTargetParts)])
+        else
+            targetPart = Character:FindFirstChild(SilentAimSettings.TargetPart)
+        end
+        
         if not targetPart then continue end
+
         local ScreenPosition, OnScreen = getPositionOnScreen(targetPart.Position)
         if not OnScreen then continue end
+
         local Distance = (MousePosition - ScreenPosition).Magnitude
         if Distance <= SilentAimSettings.FOVRadius then
             if SilentAimSettings.VisibleCheck and not IsPlayerVisible(Player) then continue end
+            
             if Distance < SmallestDistance then
                 SmallestDistance = Distance
                 ClosestTarget = targetPart
@@ -121,6 +203,7 @@ RunService.RenderStepped:Connect(function()
     else
         fov_circle.Visible = false
     end
+
     if SilentAimSettings.ShowTargetBox and SilentAimSettings.Enabled then
         local closestPlayer = getClosestPlayer()
         if closestPlayer then
@@ -133,6 +216,8 @@ RunService.RenderStepped:Connect(function()
                 else
                     mouse_box.Visible = false
                 end
+            else
+                mouse_box.Visible = false
             end
         else
             mouse_box.Visible = false
@@ -147,6 +232,7 @@ oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     local Method = getnamecallmethod()
     local Arguments = {...}
     local self = Arguments[1]
+
     if SilentAimSettings.Enabled and self == workspace and not checkcaller() and CalculateChance(SilentAimSettings.HitChance) then
         local HitPart = getClosestPlayer()
         if HitPart then
@@ -188,19 +274,3 @@ oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
     end
     return oldIndex(self, Index)
 end))
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/specific-game")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-Window:SelectTab(1)
-Fluent:Notify({
-    Title = "Fluent",
-    Content = "The script has been loaded.",
-    Duration = 8
-})
-SaveManager:LoadAutoloadConfig()
