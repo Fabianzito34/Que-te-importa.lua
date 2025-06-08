@@ -1,48 +1,44 @@
--- VIXC 3 UI Library for Silent Aim (Mobile Optimized)
 
--- Servicios de Roblox
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse() -- Mouse still exists on mobile for some functions
+local Mouse = LocalPlayer:GetMouse()
 
--- Configuración inicial del Silent Aim
 local SilentAimSettings = {
     Enabled = false,
-    TargetPart = "HumanoidRootPart", -- "Head", "HumanoidRootPart", "Random"
-    SilentAimMethod = "Raycast", -- "Raycast", "FindPartOnRay", "Mouse.Hit"
+    TargetPart = "HumanoidRootPart",
+    SilentAimMethod = "Raycast",
     FOVRadius = 130,
     TeamCheck = false,
     VisibleCheck = false,
     HitChance = 100,
-    PredictionAmount = 0.165, -- Solo para Mouse.Hit
+    PredictionAmount = 0.165,
     ShowFOV = false,
     ShowTargetBox = false
 }
 
--- Variables para la UI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "VIXC3_MobileSilentAimUI"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0) -- Tamaño relativo para mejor adaptabilidad
-MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0) -- Posición relativa
+MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
+MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true -- Aunque es móvil, el arrastre sigue siendo útil
+MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
 local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
-UIAspectRatioConstraint.AspectRatio = 0.75 -- Mantiene la proporción para diferentes tamaños de pantalla
+UIAspectRatioConstraint.AspectRatio = 0.75
 UIAspectRatioConstraint.Parent = MainFrame
 
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40) -- Barra de título más grande
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
@@ -52,17 +48,17 @@ TitleLabel.Size = UDim2.new(1, 0, 1, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.Font = Enum.Font.SourceSansBold
-TitleLabel.TextSize = 22 -- Texto más grande
+TitleLabel.TextSize = 22
 TitleLabel.Text = "VIXC 3 Mobile Silent Aim"
 TitleLabel.Parent = TitleBar
 
 local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 50, 1, 0) -- Botón de cierre más grande
+CloseButton.Size = UDim2.new(0, 50, 1, 0)
 CloseButton.Position = UDim2.new(1, -50, 0, 0)
 CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.Font = Enum.Font.SourceSansBold
-CloseButton.TextSize = 20 -- Texto más grande
+CloseButton.TextSize = 20
 CloseButton.Text = "X"
 CloseButton.Parent = TitleBar
 CloseButton.MouseButton1Click:Connect(function()
@@ -70,17 +66,17 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 local ScrollingFrame = Instance.new("ScrollingFrame")
-ScrollingFrame.Size = UDim2.new(1, 0, 1, -40) -- Deja espacio para el título
+ScrollingFrame.Size = UDim2.new(1, 0, 1, -40)
 ScrollingFrame.Position = UDim2.new(0, 0, 0, 40)
 ScrollingFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 ScrollingFrame.BorderSizePixel = 0
 ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
-ScrollingFrame.ScrollBarThickness = 8 -- Scrollbar más visible
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Se ajusta con el UILayout
+ScrollingFrame.ScrollBarThickness = 8
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 8) -- Más espacio entre elementos
+UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.FillDirection = Enum.FillDirection.Vertical
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIListLayout.Parent = ScrollingFrame
@@ -93,25 +89,23 @@ UIListLayout.ChildAdded:Connect(UpdateCanvasSize)
 UIListLayout.ChildRemoved:Connect(UpdateCanvasSize)
 UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvasSize)
 
-
--- Función para crear un botón de toggle
 local function CreateToggleButton(parent, text, settingKey)
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0.95, 0, 0, 50) -- Botones más grandes
+    Button.Size = UDim2.new(0.95, 0, 0, 50)
     Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     Button.TextColor3 = Color3.fromRGB(255, 255, 255)
     Button.Font = Enum.Font.SourceSansBold
-    Button.TextSize = 18 -- Texto más grande
+    Button.TextSize = 18
     Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
     Button.Parent = parent
-    Button.CornerRadius = UDim.new(0, 8) -- Bordes redondeados
+    Button.CornerRadius = UDim.new(0, 8)
 
     local function updateText()
         Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
         if SilentAimSettings[settingKey] then
-            Button.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Color verde si está ON
+            Button.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
         else
-            Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60) -- Color gris si está OFF
+            Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
         end
         UpdateCanvasSize()
     end
@@ -121,11 +115,10 @@ local function CreateToggleButton(parent, text, settingKey)
         updateText()
     end)
 
-    updateText() -- Initial state
+    updateText()
     return Button
 end
 
--- Función para crear un Dropdown
 local function CreateDropdown(parent, text, settingKey, values)
     local DropdownFrame = Instance.new("Frame")
     DropdownFrame.Size = UDim2.new(0.95, 0, 0, 50)
@@ -135,7 +128,7 @@ local function CreateDropdown(parent, text, settingKey, values)
     DropdownFrame.CornerRadius = UDim.new(0, 8)
 
     local CurrentSelection = Instance.new("TextLabel")
-    CurrentSelection.Size = UDim2.new(1, -60, 1, 0) -- Deja espacio para la flecha
+    CurrentSelection.Size = UDim2.new(1, -60, 1, 0)
     CurrentSelection.BackgroundTransparency = 1
     CurrentSelection.TextColor3 = Color3.fromRGB(255, 255, 255)
     CurrentSelection.Font = Enum.Font.SourceSansBold
@@ -153,10 +146,10 @@ local function CreateDropdown(parent, text, settingKey, values)
     ArrowButton.TextSize = 20
     ArrowButton.Text = "▼"
     ArrowButton.Parent = DropdownFrame
-    ArrowButton.CornerRadius = UDim.new(0, 8) -- Bordes redondeados
+    ArrowButton.CornerRadius = UDim.new(0, 8)
 
     local OptionsFrame = Instance.new("Frame")
-    OptionsFrame.Size = UDim2.new(1, 0, 0, 50 * #values) -- Altura dinámica
+    OptionsFrame.Size = UDim2.new(1, 0, 0, 50 * #values)
     OptionsFrame.Position = UDim2.new(0, 0, 1, 0)
     OptionsFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     OptionsFrame.BorderSizePixel = 0
@@ -196,10 +189,9 @@ local function CreateDropdown(parent, text, settingKey, values)
     UpdateCanvasSize()
 end
 
--- Función para crear un Slider
 local function CreateSlider(parent, text, settingKey, min, max, rounding)
     local SliderFrame = Instance.new("Frame")
-    SliderFrame.Size = UDim2.new(0.95, 0, 0, 70) -- Más alto para el slider
+    SliderFrame.Size = UDim2.new(0.95, 0, 0, 70)
     SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     SliderFrame.BorderSizePixel = 0
     SliderFrame.Parent = parent
@@ -215,7 +207,7 @@ local function CreateSlider(parent, text, settingKey, min, max, rounding)
     SliderLabel.Parent = SliderFrame
 
     local Slider = Instance.new("Frame")
-    Slider.Size = UDim2.new(0.9, 0, 0, 15) -- Más ancho para el arrastre
+    Slider.Size = UDim2.new(0.9, 0, 0, 15)
     Slider.Position = UDim2.new(0.05, 0, 0.5, 0)
     Slider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     Slider.BorderSizePixel = 1
@@ -224,7 +216,7 @@ local function CreateSlider(parent, text, settingKey, min, max, rounding)
     Slider.CornerRadius = UDim.new(0, 8)
 
     local SliderHandle = Instance.new("Frame")
-    SliderHandle.Size = UDim2.new(0, 20, 1, 0) -- Handle más grande
+    SliderHandle.Size = UDim2.new(0, 20, 1, 0)
     SliderHandle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
     SliderHandle.BorderSizePixel = 0
     SliderHandle.Parent = Slider
@@ -267,14 +259,11 @@ local function CreateSlider(parent, text, settingKey, min, max, rounding)
         end
     end)
     
-    -- Set initial handle position
     local initialRelativeX = (SilentAimSettings[settingKey] - min) / (max - min)
     SliderHandle.Position = UDim2.new(initialRelativeX, 0, 0, 0)
     UpdateCanvasSize()
 end
 
-
--- UI Elements (Añadir a ScrollingFrame)
 CreateToggleButton(ScrollingFrame, "Silent Aim", "Enabled")
 CreateDropdown(ScrollingFrame, "Target Part", "TargetPart", {"Head", "HumanoidRootPart", "Random"})
 CreateDropdown(ScrollingFrame, "Method", "SilentAimMethod", {"Raycast", "FindPartOnRay", "Mouse.Hit"})
@@ -286,8 +275,6 @@ CreateSlider(ScrollingFrame, "Prediction Amount", "PredictionAmount", 0, 1, 3)
 CreateToggleButton(ScrollingFrame, "Show FOV Circle", "ShowFOV")
 CreateToggleButton(ScrollingFrame, "Show Target Box", "ShowTargetBox")
 
-
--- Visuals (FOV Circle & Target Box) - Usan la capa de Drawing
 local fov_circle = Drawing.new("Circle")
 fov_circle.Thickness = 1
 fov_circle.NumSides = 100
@@ -309,7 +296,6 @@ RunService.RenderStepped:Connect(function()
     if SilentAimSettings.ShowFOV then
         fov_circle.Visible = true
         fov_circle.Radius = SilentAimSettings.FOVRadius
-        -- En móvil, UserInputService:GetMouseLocation() devuelve la posición del último toque o puntero
         fov_circle.Position = UserInputService:GetMouseLocation()
     else
         fov_circle.Visible = false
@@ -338,14 +324,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-
----
-
-## **Lógica del Silent Aim (Integrada)**
-
-La lógica de silent aim es la misma que te proporcioné antes, ya que es independiente de la UI y se basa en las funciones de Roblox y los `hookmetamethods`.
-
-```lua
 local ValidTargetParts = {"Head", "HumanoidRootPart"}
 
 local function CalculateChance(Percentage)
@@ -385,7 +363,7 @@ end
 local function getClosestPlayer()
     local ClosestTarget = nil
     local SmallestDistance = math.huge
-    local MousePosition = UserInputService:GetMouseLocation() -- Obtiene la posición del toque/puntero
+    local MousePosition = UserInputService:GetMouseLocation()
 
     for _, Player in ipairs(Players:GetPlayers()) do
         if Player == LocalPlayer then continue end
@@ -422,7 +400,6 @@ local function getClosestPlayer()
     return ClosestTarget
 end
 
--- Hooks para Silent Aim
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     local Method = getnamecallmethod()
