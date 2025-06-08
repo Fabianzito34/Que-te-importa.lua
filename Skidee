@@ -544,10 +544,10 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window =
     Rayfield:CreateWindow(
     {
-        Name = "G&B Hub - Xavier I.N.C",
+        Name = "G&B Hub - Patz I.N.C",
         Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-        LoadingTitle = "Xabisco on youtube.",
-        LoadingSubtitle = "by Xabisco",
+        LoadingTitle = "lol.",
+        LoadingSubtitle = "by fabian",
         Theme = "Default",
         DisableRayfieldPrompts = true,
         DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
@@ -569,7 +569,7 @@ local Window =
             FileName = "Key",
             SaveKey = true,
             GrabKeyFromSite = false,
-            Key = {"xabisco_inc"}
+            Key = {"Fabianlol"}
         }
     }
 )
