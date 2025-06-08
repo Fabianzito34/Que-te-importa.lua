@@ -1,447 +1,449 @@
--- init
-if not game:IsLoaded() then 
-    game.Loaded:Wait()
-end
+-- VIXC 3 UI Library for Silent Aim (Mobile Optimized)
 
-if not syn or not protectgui then
-    getgenv().protectgui = function() end
-end
-
-local SilentAimSettings = {
-    Enabled = false,
-    
-    ClassName = "Universal Silent Aim - Averiias, Stefanuk12, xaxa",
-    ToggleKey = "RightAlt",
-    
-    TeamCheck = false,
-    VisibleCheck = false, 
-    TargetPart = "HumanoidRootPart",
-    SilentAimMethod = "Raycast",
-    
-    FOVRadius = 130,
-    FOVVisible = false,
-    ShowSilentAimTarget = false, 
-    
-    MouseHitPrediction = false,
-    MouseHitPredictionAmount = 0.165,
-    HitChance = 100
-}
-
--- variables
-getgenv().SilentAimSettings = Settings
-local MainFileName = "UniversalSilentAim"
-local SelectedFile, FileToSave = "", ""
-
-local Camera = workspace.CurrentCamera
+-- Servicios de Roblox
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
+local Mouse = LocalPlayer:GetMouse() -- Mouse still exists on mobile for some functions
 
-local GetChildren = game.GetChildren
-local GetPlayers = Players.GetPlayers
-local WorldToScreen = Camera.WorldToScreenPoint
-local WorldToViewportPoint = Camera.WorldToViewportPoint
-local GetPartsObscuringTarget = Camera.GetPartsObscuringTarget
-local FindFirstChild = game.FindFirstChild
-local RenderStepped = RunService.RenderStepped
-local GuiInset = GuiService.GetGuiInset
-local GetMouseLocation = UserInputService.GetMouseLocation
+-- Configuración inicial del Silent Aim
+local SilentAimSettings = {
+    Enabled = false,
+    TargetPart = "HumanoidRootPart", -- "Head", "HumanoidRootPart", "Random"
+    SilentAimMethod = "Raycast", -- "Raycast", "FindPartOnRay", "Mouse.Hit"
+    FOVRadius = 130,
+    TeamCheck = false,
+    VisibleCheck = false,
+    HitChance = 100,
+    PredictionAmount = 0.165, -- Solo para Mouse.Hit
+    ShowFOV = false,
+    ShowTargetBox = false
+}
 
-local resume = coroutine.resume 
-local create = coroutine.create
+-- Variables para la UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "VIXC3_MobileSilentAimUI"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local ValidTargetParts = {"Head", "HumanoidRootPart"}
-local PredictionAmount = 0.165
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0.9, 0, 0.7, 0) -- Tamaño relativo para mejor adaptabilidad
+MainFrame.Position = UDim2.new(0.05, 0, 0.15, 0) -- Posición relativa
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true -- Aunque es móvil, el arrastre sigue siendo útil
+MainFrame.Parent = ScreenGui
 
-local mouse_box = Drawing.new("Square")
-mouse_box.Visible = true 
-mouse_box.ZIndex = 999 
-mouse_box.Color = Color3.fromRGB(54, 57, 241)
-mouse_box.Thickness = 20 
-mouse_box.Size = Vector2.new(20, 20)
-mouse_box.Filled = true 
+local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
+UIAspectRatioConstraint.AspectRatio = 0.75 -- Mantiene la proporción para diferentes tamaños de pantalla
+UIAspectRatioConstraint.Parent = MainFrame
 
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40) -- Barra de título más grande
+TitleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextSize = 22 -- Texto más grande
+TitleLabel.Text = "VIXC 3 Mobile Silent Aim"
+TitleLabel.Parent = TitleBar
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 50, 1, 0) -- Botón de cierre más grande
+CloseButton.Position = UDim2.new(1, -50, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.TextSize = 20 -- Texto más grande
+CloseButton.Text = "X"
+CloseButton.Parent = TitleBar
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui.Enabled = not ScreenGui.Enabled
+end)
+
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Size = UDim2.new(1, 0, 1, -40) -- Deja espacio para el título
+ScrollingFrame.Position = UDim2.new(0, 0, 0, 40)
+ScrollingFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+ScrollingFrame.ScrollBarThickness = 8 -- Scrollbar más visible
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Se ajusta con el UILayout
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 8) -- Más espacio entre elementos
+UIListLayout.FillDirection = Enum.FillDirection.Vertical
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.Parent = ScrollingFrame
+
+local function UpdateCanvasSize()
+    local contentHeight = UIListLayout.AbsoluteContentSize.Y
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, contentHeight + UIListLayout.Padding.Offset * 2)
+end
+UIListLayout.ChildAdded:Connect(UpdateCanvasSize)
+UIListLayout.ChildRemoved:Connect(UpdateCanvasSize)
+UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvasSize)
+
+
+-- Función para crear un botón de toggle
+local function CreateToggleButton(parent, text, settingKey)
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0.95, 0, 0, 50) -- Botones más grandes
+    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.Font = Enum.Font.SourceSansBold
+    Button.TextSize = 18 -- Texto más grande
+    Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
+    Button.Parent = parent
+    Button.CornerRadius = UDim.new(0, 8) -- Bordes redondeados
+
+    local function updateText()
+        Button.Text = text .. ": " .. (SilentAimSettings[settingKey] and "ON" or "OFF")
+        if SilentAimSettings[settingKey] then
+            Button.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Color verde si está ON
+        else
+            Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60) -- Color gris si está OFF
+        end
+        UpdateCanvasSize()
+    end
+
+    Button.MouseButton1Click:Connect(function()
+        SilentAimSettings[settingKey] = not SilentAimSettings[settingKey]
+        updateText()
+    end)
+
+    updateText() -- Initial state
+    return Button
+end
+
+-- Función para crear un Dropdown
+local function CreateDropdown(parent, text, settingKey, values)
+    local DropdownFrame = Instance.new("Frame")
+    DropdownFrame.Size = UDim2.new(0.95, 0, 0, 50)
+    DropdownFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    DropdownFrame.BorderSizePixel = 0
+    DropdownFrame.Parent = parent
+    DropdownFrame.CornerRadius = UDim.new(0, 8)
+
+    local CurrentSelection = Instance.new("TextLabel")
+    CurrentSelection.Size = UDim2.new(1, -60, 1, 0) -- Deja espacio para la flecha
+    CurrentSelection.BackgroundTransparency = 1
+    CurrentSelection.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CurrentSelection.Font = Enum.Font.SourceSansBold
+    CurrentSelection.TextSize = 18
+    CurrentSelection.TextXAlignment = Enum.TextXAlignment.Left
+    CurrentSelection.Text = text .. ": " .. SilentAimSettings[settingKey]
+    CurrentSelection.Parent = DropdownFrame
+
+    local ArrowButton = Instance.new("TextButton")
+    ArrowButton.Size = UDim2.new(0, 50, 1, 0)
+    ArrowButton.Position = UDim2.new(1, -50, 0, 0)
+    ArrowButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    ArrowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ArrowButton.Font = Enum.Font.SourceSansBold
+    ArrowButton.TextSize = 20
+    ArrowButton.Text = "▼"
+    ArrowButton.Parent = DropdownFrame
+    ArrowButton.CornerRadius = UDim.new(0, 8) -- Bordes redondeados
+
+    local OptionsFrame = Instance.new("Frame")
+    OptionsFrame.Size = UDim2.new(1, 0, 0, 50 * #values) -- Altura dinámica
+    OptionsFrame.Position = UDim2.new(0, 0, 1, 0)
+    OptionsFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    OptionsFrame.BorderSizePixel = 0
+    OptionsFrame.ZIndex = 2
+    OptionsFrame.Visible = false
+    OptionsFrame.Parent = DropdownFrame
+    OptionsFrame.CornerRadius = UDim.new(0, 8)
+
+    local OptionsLayout = Instance.new("UIListLayout")
+    OptionsLayout.Padding = UDim.new(0, 0)
+    OptionsLayout.FillDirection = Enum.FillDirection.Vertical
+    OptionsLayout.Parent = OptionsFrame
+
+    for _, value in ipairs(values) do
+        local OptionButton = Instance.new("TextButton")
+        OptionButton.Size = UDim2.new(1, 0, 0, 50)
+        OptionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        OptionButton.Font = Enum.Font.SourceSans
+        OptionButton.TextSize = 18
+        OptionButton.Text = value
+        OptionButton.Parent = OptionsFrame
+        OptionButton.CornerRadius = UDim.new(0, 8)
+
+        OptionButton.MouseButton1Click:Connect(function()
+            SilentAimSettings[settingKey] = value
+            CurrentSelection.Text = text .. ": " .. SilentAimSettings[settingKey]
+            OptionsFrame.Visible = false
+            UpdateCanvasSize()
+        end)
+    end
+
+    ArrowButton.MouseButton1Click:Connect(function()
+        OptionsFrame.Visible = not OptionsFrame.Visible
+        UpdateCanvasSize()
+    end)
+    UpdateCanvasSize()
+end
+
+-- Función para crear un Slider
+local function CreateSlider(parent, text, settingKey, min, max, rounding)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(0.95, 0, 0, 70) -- Más alto para el slider
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    SliderFrame.BorderSizePixel = 0
+    SliderFrame.Parent = parent
+    SliderFrame.CornerRadius = UDim.new(0, 8)
+
+    local SliderLabel = Instance.new("TextLabel")
+    SliderLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SliderLabel.Font = Enum.Font.SourceSansBold
+    SliderLabel.TextSize = 18
+    SliderLabel.Text = text .. ": " .. tostring(math.floor(SilentAimSettings[settingKey] * (10 ^ rounding)) / (10 ^ rounding))
+    SliderLabel.Parent = SliderFrame
+
+    local Slider = Instance.new("Frame")
+    Slider.Size = UDim2.new(0.9, 0, 0, 15) -- Más ancho para el arrastre
+    Slider.Position = UDim2.new(0.05, 0, 0.5, 0)
+    Slider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Slider.BorderSizePixel = 1
+    Slider.BorderColor3 = Color3.fromRGB(20, 20, 20)
+    Slider.Parent = SliderFrame
+    Slider.CornerRadius = UDim.new(0, 8)
+
+    local SliderHandle = Instance.new("Frame")
+    SliderHandle.Size = UDim2.new(0, 20, 1, 0) -- Handle más grande
+    SliderHandle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    SliderHandle.BorderSizePixel = 0
+    SliderHandle.Parent = Slider
+    SliderHandle.CornerRadius = UDim.new(0, 8)
+
+    local dragging = false
+    local startX = 0
+    local startValue = 0
+
+    SliderHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startX = input.Position.X
+            startValue = SilentAimSettings[settingKey]
+            SliderHandle.BackgroundTransparency = 0.5
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local mouseX = input.Position.X
+            local sliderAbsoluteX = Slider.AbsolutePosition.X
+            local sliderAbsoluteWidth = Slider.AbsoluteSize.X
+            
+            local relativeX = math.clamp((mouseX - sliderAbsoluteX) / sliderAbsoluteWidth, 0, 1)
+
+            local newValue = min + (max - min) * relativeX
+            SilentAimSettings[settingKey] = math.floor(newValue * (10 ^ rounding)) / (10 ^ rounding)
+            
+            local handleX = math.clamp((SilentAimSettings[settingKey] - min) / (max - min), 0, 1)
+            SliderHandle.Position = UDim2.new(handleX, 0, 0, 0)
+            SliderLabel.Text = text .. ": " .. tostring(SilentAimSettings[settingKey])
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            SliderHandle.BackgroundTransparency = 0
+        end
+    end)
+    
+    -- Set initial handle position
+    local initialRelativeX = (SilentAimSettings[settingKey] - min) / (max - min)
+    SliderHandle.Position = UDim2.new(initialRelativeX, 0, 0, 0)
+    UpdateCanvasSize()
+end
+
+
+-- UI Elements (Añadir a ScrollingFrame)
+CreateToggleButton(ScrollingFrame, "Silent Aim", "Enabled")
+CreateDropdown(ScrollingFrame, "Target Part", "TargetPart", {"Head", "HumanoidRootPart", "Random"})
+CreateDropdown(ScrollingFrame, "Method", "SilentAimMethod", {"Raycast", "FindPartOnRay", "Mouse.Hit"})
+CreateSlider(ScrollingFrame, "FOV Radius", "FOVRadius", 0, 360, 0)
+CreateToggleButton(ScrollingFrame, "Team Check", "TeamCheck")
+CreateToggleButton(ScrollingFrame, "Visible Check", "VisibleCheck")
+CreateSlider(ScrollingFrame, "Hit Chance", "HitChance", 0, 100, 0)
+CreateSlider(ScrollingFrame, "Prediction Amount", "PredictionAmount", 0, 1, 3)
+CreateToggleButton(ScrollingFrame, "Show FOV Circle", "ShowFOV")
+CreateToggleButton(ScrollingFrame, "Show Target Box", "ShowTargetBox")
+
+
+-- Visuals (FOV Circle & Target Box) - Usan la capa de Drawing
 local fov_circle = Drawing.new("Circle")
 fov_circle.Thickness = 1
 fov_circle.NumSides = 100
-fov_circle.Radius = 180
 fov_circle.Filled = false
 fov_circle.Visible = false
 fov_circle.ZIndex = 999
-fov_circle.Transparency = 1
+fov_circle.Transparency = 0.5
 fov_circle.Color = Color3.fromRGB(54, 57, 241)
 
-local ExpectedArguments = {
-    FindPartOnRayWithIgnoreList = {
-        ArgCountRequired = 3,
-        Args = {
-            "Instance", "Ray", "table", "boolean", "boolean"
-        }
-    },
-    FindPartOnRayWithWhitelist = {
-        ArgCountRequired = 3,
-        Args = {
-            "Instance", "Ray", "table", "boolean"
-        }
-    },
-    FindPartOnRay = {
-        ArgCountRequired = 2,
-        Args = {
-            "Instance", "Ray", "Instance", "boolean", "boolean"
-        }
-    },
-    Raycast = {
-        ArgCountRequired = 3,
-        Args = {
-            "Instance", "Vector3", "Vector3", "RaycastParams"
-        }
-    }
-}
+local mouse_box = Drawing.new("Square")
+mouse_box.Thickness = 2
+mouse_box.Size = Vector2.new(20, 20)
+mouse_box.Filled = false
+mouse_box.Visible = false
+mouse_box.ZIndex = 999
+mouse_box.Color = Color3.fromRGB(54, 57, 241)
 
-function CalculateChance(Percentage)
-    -- // Floor the percentage
+RunService.RenderStepped:Connect(function()
+    if SilentAimSettings.ShowFOV then
+        fov_circle.Visible = true
+        fov_circle.Radius = SilentAimSettings.FOVRadius
+        -- En móvil, UserInputService:GetMouseLocation() devuelve la posición del último toque o puntero
+        fov_circle.Position = UserInputService:GetMouseLocation()
+    else
+        fov_circle.Visible = false
+    end
+
+    if SilentAimSettings.ShowTargetBox and SilentAimSettings.Enabled then
+        local closestPlayer = getClosestPlayer()
+        if closestPlayer then
+            local rootPart = closestPlayer.Parent:FindFirstChild("HumanoidRootPart") or closestPlayer
+            if rootPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    mouse_box.Visible = true
+                    mouse_box.Position = Vector2.new(screenPos.X, screenPos.Y)
+                else
+                    mouse_box.Visible = false
+                end
+            else
+                mouse_box.Visible = false
+            end
+        else
+            mouse_box.Visible = false
+        end
+    else
+        mouse_box.Visible = false
+    end
+end)
+
+
+---
+
+## **Lógica del Silent Aim (Integrada)**
+
+La lógica de silent aim es la misma que te proporcioné antes, ya que es independiente de la UI y se basa en las funciones de Roblox y los `hookmetamethods`.
+
+```lua
+local ValidTargetParts = {"Head", "HumanoidRootPart"}
+
+local function CalculateChance(Percentage)
     Percentage = math.floor(Percentage)
-
-    -- // Get the chance
     local chance = math.floor(Random.new().NextNumber(Random.new(), 0, 1) * 100) / 100
-
-    -- // Return
     return chance <= Percentage / 100
 end
 
-
---[[file handling]] do 
-    if not isfolder(MainFileName) then 
-        makefolder(MainFileName);
-    end
-    
-    if not isfolder(string.format("%s/%s", MainFileName, tostring(game.PlaceId))) then 
-        makefolder(string.format("%s/%s", MainFileName, tostring(game.PlaceId)))
-    end
-end
-
-local Files = listfiles(string.format("%s/%s", "UniversalSilentAim", tostring(game.PlaceId)))
-
--- functions
-local function GetFiles() -- credits to the linoria lib for this function, listfiles returns the files full path and its annoying
-	local out = {}
-	for i = 1, #Files do
-		local file = Files[i]
-		if file:sub(-4) == '.lua' then
-			-- i hate this but it has to be done ...
-
-			local pos = file:find('.lua', 1, true)
-			local start = pos
-
-			local char = file:sub(pos, pos)
-			while char ~= '/' and char ~= '\\' and char ~= '' do
-				pos = pos - 1
-				char = file:sub(pos, pos)
-			end
-
-			if char == '/' or char == '\\' then
-				table.insert(out, file:sub(pos + 1, start - 1))
-			end
-		end
-	end
-	
-	return out
-end
-
-local function UpdateFile(FileName)
-    assert(FileName or FileName == "string", "oopsies");
-    writefile(string.format("%s/%s/%s.lua", MainFileName, tostring(game.PlaceId), FileName), HttpService:JSONEncode(SilentAimSettings))
-end
-
-local function LoadFile(FileName)
-    assert(FileName or FileName == "string", "oopsies");
-    
-    local File = string.format("%s/%s/%s.lua", MainFileName, tostring(game.PlaceId), FileName)
-    local ConfigData = HttpService:JSONDecode(readfile(File))
-    for Index, Value in next, ConfigData do
-        SilentAimSettings[Index] = Value
-    end
-end
-
 local function getPositionOnScreen(Vector)
-    local Vec3, OnScreen = WorldToScreen(Camera, Vector)
+    local Vec3, OnScreen = Camera:WorldToScreenPoint(Vector)
     return Vector2.new(Vec3.X, Vec3.Y), OnScreen
-end
-
-local function ValidateArguments(Args, RayMethod)
-    local Matches = 0
-    if #Args < RayMethod.ArgCountRequired then
-        return false
-    end
-    for Pos, Argument in next, Args do
-        if typeof(Argument) == RayMethod.Args[Pos] then
-            Matches = Matches + 1
-        end
-    end
-    return Matches >= RayMethod.ArgCountRequired
 end
 
 local function getDirection(Origin, Position)
     return (Position - Origin).Unit * 1000
 end
 
-local function getMousePosition()
-    return GetMouseLocation(UserInputService)
-end
-
 local function IsPlayerVisible(Player)
     local PlayerCharacter = Player.Character
     local LocalPlayerCharacter = LocalPlayer.Character
     
-    if not (PlayerCharacter or LocalPlayerCharacter) then return end 
+    if not (PlayerCharacter and LocalPlayerCharacter) then return false end 
     
-    local PlayerRoot = FindFirstChild(PlayerCharacter, Options.TargetPart.Value) or FindFirstChild(PlayerCharacter, "HumanoidRootPart")
+    local PlayerRoot = PlayerCharacter:FindFirstChild("HumanoidRootPart")
     
-    if not PlayerRoot then return end 
+    if not PlayerRoot then return false end 
     
-    local CastPoints, IgnoreList = {PlayerRoot.Position, LocalPlayerCharacter, PlayerCharacter}, {LocalPlayerCharacter, PlayerCharacter}
-    local ObscuringObjects = #GetPartsObscuringTarget(Camera, CastPoints, IgnoreList)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {LocalPlayerCharacter, PlayerCharacter}
     
-    return ((ObscuringObjects == 0 and true) or (ObscuringObjects > 0 and false))
+    local rayResult = workspace:Raycast(Camera.CFrame.Position, (PlayerRoot.Position - Camera.CFrame.Position).Unit * 1000, raycastParams)
+    
+    return rayResult and rayResult.Instance and rayResult.Instance:IsDescendantOf(PlayerCharacter)
 end
 
 local function getClosestPlayer()
-    if not Options.TargetPart.Value then return end
-    local Closest
-    local DistanceToMouse
-    for _, Player in next, GetPlayers(Players) do
+    local ClosestTarget = nil
+    local SmallestDistance = math.huge
+    local MousePosition = UserInputService:GetMouseLocation() -- Obtiene la posición del toque/puntero
+
+    for _, Player in ipairs(Players:GetPlayers()) do
         if Player == LocalPlayer then continue end
-        if Toggles.TeamCheck.Value and Player.Team == LocalPlayer.Team then continue end
+        if SilentAimSettings.TeamCheck and Player.Team == LocalPlayer.Team then continue end
 
         local Character = Player.Character
         if not Character then continue end
         
-        if Toggles.VisibleCheck.Value and not IsPlayerVisible(Player) then continue end
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        if not Humanoid or Humanoid.Health <= 0 then continue end
 
-        local HumanoidRootPart = FindFirstChild(Character, "HumanoidRootPart")
-        local Humanoid = FindFirstChild(Character, "Humanoid")
-        if not HumanoidRootPart or not Humanoid or Humanoid and Humanoid.Health <= 0 then continue end
+        local targetPart = nil
+        if SilentAimSettings.TargetPart == "Random" then
+            targetPart = Character:FindFirstChild(ValidTargetParts[math.random(1, #ValidTargetParts)])
+        else
+            targetPart = Character:FindFirstChild(SilentAimSettings.TargetPart)
+        end
+        
+        if not targetPart then continue end
 
-        local ScreenPosition, OnScreen = getPositionOnScreen(HumanoidRootPart.Position)
+        local ScreenPosition, OnScreen = getPositionOnScreen(targetPart.Position)
         if not OnScreen then continue end
 
-        local Distance = (getMousePosition() - ScreenPosition).Magnitude
-        if Distance <= (DistanceToMouse or Options.Radius.Value or 2000) then
-            Closest = ((Options.TargetPart.Value == "Random" and Character[ValidTargetParts[math.random(1, #ValidTargetParts)]]) or Character[Options.TargetPart.Value])
-            DistanceToMouse = Distance
-        end
-    end
-    return Closest
-end
-
--- ui creating & handling
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/Library.lua"))()
-Library:SetWatermark("github.com/Averiias")
-
-local Window = Library:CreateWindow({Title = 'Universal Silent Aim', Center = true, AutoShow = true, TabPadding = 8, MenuFadeTime = 0.2})
-local GeneralTab = Window:AddTab("General")
-local MainBOX = GeneralTab:AddLeftTabbox("Main") do
-    local Main = MainBOX:AddTab("Main")
-    
-    Main:AddToggle("aim_Enabled", {Text = "Enabled"}):AddKeyPicker("aim_Enabled_KeyPicker", {Default = "RightAlt", SyncToggleState = true, Mode = "Toggle", Text = "Enabled", NoUI = false});
-    Options.aim_Enabled_KeyPicker:OnClick(function()
-        SilentAimSettings.Enabled = not SilentAimSettings.Enabled
-        
-        Toggles.aim_Enabled.Value = SilentAimSettings.Enabled
-        Toggles.aim_Enabled:SetValue(SilentAimSettings.Enabled)
-        
-        mouse_box.Visible = SilentAimSettings.Enabled
-    end)
-    
-    Main:AddToggle("TeamCheck", {Text = "Team Check", Default = SilentAimSettings.TeamCheck}):OnChanged(function()
-        SilentAimSettings.TeamCheck = Toggles.TeamCheck.Value
-    end)
-    Main:AddToggle("VisibleCheck", {Text = "Visible Check", Default = SilentAimSettings.VisibleCheck}):OnChanged(function()
-        SilentAimSettings.VisibleCheck = Toggles.VisibleCheck.Value
-    end)
-    Main:AddDropdown("TargetPart", {AllowNull = true, Text = "Target Part", Default = SilentAimSettings.TargetPart, Values = {"Head", "HumanoidRootPart", "Random"}}):OnChanged(function()
-        SilentAimSettings.TargetPart = Options.TargetPart.Value
-    end)
-    Main:AddDropdown("Method", {AllowNull = true, Text = "Silent Aim Method", Default = SilentAimSettings.SilentAimMethod, Values = {
-        "Raycast","FindPartOnRay",
-        "FindPartOnRayWithWhitelist",
-        "FindPartOnRayWithIgnoreList",
-        "Mouse.Hit/Target"
-    }}):OnChanged(function() 
-        SilentAimSettings.SilentAimMethod = Options.Method.Value 
-    end)
-    Main:AddSlider('HitChance', {
-        Text = 'Hit chance',
-        Default = 100,
-        Min = 0,
-        Max = 100,
-        Rounding = 1,
-    
-        Compact = false,
-    })
-    Options.HitChance:OnChanged(function()
-        SilentAimSettings.HitChance = Options.HitChance.Value
-    end)
-end
-
-local MiscellaneousBOX = GeneralTab:AddLeftTabbox("Miscellaneous")
-local FieldOfViewBOX = GeneralTab:AddLeftTabbox("Field Of View") do
-    local Main = FieldOfViewBOX:AddTab("Visuals")
-    
-    Main:AddToggle("Visible", {Text = "Show FOV Circle"}):AddColorPicker("Color", {Default = Color3.fromRGB(54, 57, 241)}):OnChanged(function()
-        fov_circle.Visible = Toggles.Visible.Value
-        SilentAimSettings.FOVVisible = Toggles.Visible.Value
-    end)
-    Main:AddSlider("Radius", {Text = "FOV Circle Radius", Min = 0, Max = 360, Default = 130, Rounding = 0}):OnChanged(function()
-        fov_circle.Radius = Options.Radius.Value
-        SilentAimSettings.FOVRadius = Options.Radius.Value
-    end)
-    Main:AddToggle("MousePosition", {Text = "Show Silent Aim Target"}):AddColorPicker("MouseVisualizeColor", {Default = Color3.fromRGB(54, 57, 241)}):OnChanged(function()
-        mouse_box.Visible = Toggles.MousePosition.Value 
-        SilentAimSettings.ShowSilentAimTarget = Toggles.MousePosition.Value 
-    end)
-    local PredictionTab = MiscellaneousBOX:AddTab("Prediction")
-    PredictionTab:AddToggle("Prediction", {Text = "Mouse.Hit/Target Prediction"}):OnChanged(function()
-        SilentAimSettings.MouseHitPrediction = Toggles.Prediction.Value
-    end)
-    PredictionTab:AddSlider("Amount", {Text = "Prediction Amount", Min = 0.165, Max = 1, Default = 0.165, Rounding = 3}):OnChanged(function()
-        PredictionAmount = Options.Amount.Value
-        SilentAimSettings.MouseHitPredictionAmount = Options.Amount.Value
-    end)
-end
-
-local CreateConfigurationBOX = GeneralTab:AddRightTabbox("Create Configuration") do 
-    local Main = CreateConfigurationBOX:AddTab("Create Configuration")
-    
-    Main:AddInput("CreateConfigTextBox", {Default = "", Numeric = false, Finished = false, Text = "Create Configuration to Create", Tooltip = "Creates a configuration file containing settings you can save and load", Placeholder = "File Name here"}):OnChanged(function()
-        if Options.CreateConfigTextBox.Value and string.len(Options.CreateConfigTextBox.Value) ~= "" then 
-            FileToSave = Options.CreateConfigTextBox.Value
-        end
-    end)
-    
-    Main:AddButton("Create Configuration File", function()
-        if FileToSave ~= "" or FileToSave ~= nil then 
-            UpdateFile(FileToSave)
-        end
-    end)
-end
-
-local SaveConfigurationBOX = GeneralTab:AddRightTabbox("Save Configuration") do 
-    local Main = SaveConfigurationBOX:AddTab("Save Configuration")
-    Main:AddDropdown("SaveConfigurationDropdown", {AllowNull = true, Values = GetFiles(), Text = "Choose Configuration to Save"})
-    Main:AddButton("Save Configuration", function()
-        if Options.SaveConfigurationDropdown.Value then 
-            UpdateFile(Options.SaveConfigurationDropdown.Value)
-        end
-    end)
-end
-
-local LoadConfigurationBOX = GeneralTab:AddRightTabbox("Load Configuration") do 
-    local Main = LoadConfigurationBOX:AddTab("Load Configuration")
-    
-    Main:AddDropdown("LoadConfigurationDropdown", {AllowNull = true, Values = GetFiles(), Text = "Choose Configuration to Load"})
-    Main:AddButton("Load Configuration", function()
-        if table.find(GetFiles(), Options.LoadConfigurationDropdown.Value) then
-            LoadFile(Options.LoadConfigurationDropdown.Value)
+        local Distance = (MousePosition - ScreenPosition).Magnitude
+        if Distance <= SilentAimSettings.FOVRadius then
+            if SilentAimSettings.VisibleCheck and not IsPlayerVisible(Player) then continue end
             
-            Toggles.TeamCheck:SetValue(SilentAimSettings.TeamCheck)
-            Toggles.VisibleCheck:SetValue(SilentAimSettings.VisibleCheck)
-            Options.TargetPart:SetValue(SilentAimSettings.TargetPart)
-            Options.Method:SetValue(SilentAimSettings.SilentAimMethod)
-            Toggles.Visible:SetValue(SilentAimSettings.FOVVisible)
-            Options.Radius:SetValue(SilentAimSettings.FOVRadius)
-            Toggles.MousePosition:SetValue(SilentAimSettings.ShowSilentAimTarget)
-            Toggles.Prediction:SetValue(SilentAimSettings.MouseHitPrediction)
-            Options.Amount:SetValue(SilentAimSettings.MouseHitPredictionAmount)
-            Options.HitChance:SetValue(SilentAimSettings.HitChance)
-        end
-    end)
-end
-
-resume(create(function()
-    RenderStepped:Connect(function()
-        if Toggles.MousePosition.Value and Toggles.aim_Enabled.Value then
-            if getClosestPlayer() then 
-                local Root = getClosestPlayer().Parent.PrimaryPart or getClosestPlayer()
-                local RootToViewportPoint, IsOnScreen = WorldToViewportPoint(Camera, Root.Position);
-                -- using PrimaryPart instead because if your Target Part is "Random" it will flicker the square between the Target's Head and HumanoidRootPart (its annoying)
-                
-                mouse_box.Visible = IsOnScreen
-                mouse_box.Position = Vector2.new(RootToViewportPoint.X, RootToViewportPoint.Y)
-            else 
-                mouse_box.Visible = false 
-                mouse_box.Position = Vector2.new()
+            if Distance < SmallestDistance then
+                SmallestDistance = Distance
+                ClosestTarget = targetPart
             end
         end
-        
-        if Toggles.Visible.Value then 
-            fov_circle.Visible = Toggles.Visible.Value
-            fov_circle.Color = Options.Color.Value
-            fov_circle.Position = getMousePosition()
-        end
-    end)
-end))
+    end
+    return ClosestTarget
+end
 
--- hooks
+-- Hooks para Silent Aim
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     local Method = getnamecallmethod()
     local Arguments = {...}
     local self = Arguments[1]
-    local chance = CalculateChance(SilentAimSettings.HitChance)
-    if Toggles.aim_Enabled.Value and self == workspace and not checkcaller() and chance == true then
-        if Method == "FindPartOnRayWithIgnoreList" and Options.Method.Value == Method then
-            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRayWithIgnoreList) then
-                local A_Ray = Arguments[2]
 
-                local HitPart = getClosestPlayer()
-                if HitPart then
+    if SilentAimSettings.Enabled and self == workspace and not checkcaller() and CalculateChance(SilentAimSettings.HitChance) then
+        local HitPart = getClosestPlayer()
+        if HitPart then
+            if Method == "FindPartOnRay" or Method == "findPartOnRay" then
+                if SilentAimSettings.SilentAimMethod == "FindPartOnRay" then
+                    local A_Ray = Arguments[2]
                     local Origin = A_Ray.Origin
                     local Direction = getDirection(Origin, HitPart.Position)
                     Arguments[2] = Ray.new(Origin, Direction)
-
                     return oldNamecall(unpack(Arguments))
                 end
-            end
-        elseif Method == "FindPartOnRayWithWhitelist" and Options.Method.Value == Method then
-            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRayWithWhitelist) then
-                local A_Ray = Arguments[2]
-
-                local HitPart = getClosestPlayer()
-                if HitPart then
-                    local Origin = A_Ray.Origin
-                    local Direction = getDirection(Origin, HitPart.Position)
-                    Arguments[2] = Ray.new(Origin, Direction)
-
-                    return oldNamecall(unpack(Arguments))
-                end
-            end
-        elseif (Method == "FindPartOnRay" or Method == "findPartOnRay") and Options.Method.Value:lower() == Method:lower() then
-            if ValidateArguments(Arguments, ExpectedArguments.FindPartOnRay) then
-                local A_Ray = Arguments[2]
-
-                local HitPart = getClosestPlayer()
-                if HitPart then
-                    local Origin = A_Ray.Origin
-                    local Direction = getDirection(Origin, HitPart.Position)
-                    Arguments[2] = Ray.new(Origin, Direction)
-
-                    return oldNamecall(unpack(Arguments))
-                end
-            end
-        elseif Method == "Raycast" and Options.Method.Value == Method then
-            if ValidateArguments(Arguments, ExpectedArguments.Raycast) then
-                local A_Origin = Arguments[2]
-
-                local HitPart = getClosestPlayer()
-                if HitPart then
+            elseif Method == "Raycast" then
+                if SilentAimSettings.SilentAimMethod == "Raycast" then
+                    local A_Origin = Arguments[2]
                     Arguments[3] = getDirection(A_Origin, HitPart.Position)
-
                     return oldNamecall(unpack(Arguments))
                 end
             end
@@ -450,23 +452,21 @@ oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     return oldNamecall(...)
 end))
 
-local oldIndex = nil 
+local oldIndex
 oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
-    if self == Mouse and not checkcaller() and Toggles.aim_Enabled.Value and Options.Method.Value == "Mouse.Hit/Target" and getClosestPlayer() then
+    if self == Mouse and not checkcaller() and SilentAimSettings.Enabled and SilentAimSettings.SilentAimMethod == "Mouse.Hit" and CalculateChance(SilentAimSettings.HitChance) then
         local HitPart = getClosestPlayer()
-         
-        if Index == "Target" or Index == "target" then 
-            return HitPart
-        elseif Index == "Hit" or Index == "hit" then 
-            return ((Toggles.Prediction.Value and (HitPart.CFrame + (HitPart.Velocity * PredictionAmount))) or (not Toggles.Prediction.Value and HitPart.CFrame))
-        elseif Index == "X" or Index == "x" then 
-            return self.X 
-        elseif Index == "Y" or Index == "y" then 
-            return self.Y 
-        elseif Index == "UnitRay" then 
-            return Ray.new(self.Origin, (self.Hit - self.Origin).Unit)
+        if HitPart then
+            if Index == "Target" or Index == "target" then
+                return HitPart
+            elseif Index == "Hit" or Index == "hit" then
+                local predictedCFrame = HitPart.CFrame
+                if SilentAimSettings.PredictionAmount > 0 and HitPart:IsA("BasePart") then
+                    predictedCFrame = predictedCFrame + (HitPart.Velocity * SilentAimSettings.PredictionAmount)
+                end
+                return predictedCFrame
+            end
         end
     end
-
     return oldIndex(self, Index)
 end))
