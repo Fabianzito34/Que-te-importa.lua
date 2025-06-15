@@ -1,0 +1,87 @@
+local plr = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "AutoKyotoGUI"
+gui.ResetOnSpawn = false
+gui.Parent = plr:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton", gui)
+button.Position = UDim2.new(0, 10, 0.1, 0)
+button.Size = UDim2.new(0, 200, 0, 50)
+button.Text = "Auto Kyoto"
+button.TextScaled = true
+button.BackgroundColor3 = Color3.fromRGB(0, 128, 255)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local function fireServer(args)
+    game:GetService("Players").LocalPlayer.Character.Communicate:FireServer(unpack(args))
+end
+
+local function sendKeyEvent(isPressed, key)
+    local VIM = game:GetService('VirtualInputManager')
+    VIM:SendKeyEvent(isPressed, key, false, game)
+end
+
+local function swipeCamera(swipeSpeed)
+    local camera = game.Workspace.CurrentCamera
+    local originalPosition = camera.CFrame.Position
+    local targetPosition = originalPosition + camera.CFrame.RightVector * swipeSpeed
+    camera.CFrame = CFrame.new(targetPosition, camera.CFrame.Position + camera.CFrame.LookVector)
+end
+
+local function startAutoKyoto()
+    print("Auto Kyoto sequence started...")
+
+    sendKeyEvent(true, Enum.KeyCode.D)
+    sendKeyEvent(false, Enum.KeyCode.Q)
+    sendKeyEvent(true, Enum.KeyCode.Q)
+    sendKeyEvent(false, Enum.KeyCode.D)
+
+    swipeCamera(13)
+
+    wait(0.001)
+    local toolArgs1 = {
+        [1] = {
+            ["Tool"] = plr.Backpack:FindFirstChild("Flowing Water"),
+            ["Goal"] = "Console Move"
+        }
+    }
+    fireServer(toolArgs1)
+    wait(2.27)
+
+    sendKeyEvent(true, Enum.KeyCode.D)
+    sendKeyEvent(false, Enum.KeyCode.Q)
+    sendKeyEvent(true, Enum.KeyCode.Q)
+    sendKeyEvent(false, Enum.KeyCode.D)
+
+    swipeCamera(10)
+
+    local toolArgs2 = {
+        [1] = {
+            ["Tool"] = plr.Backpack:FindFirstChild("Lethal Whirlwind Stream"),
+            ["Goal"] = "Console Move"
+        }
+    }
+    fireServer(toolArgs2)
+
+    wait(1)
+    local endArgs = {
+        [1] = {
+            ["Goal"] = "Auto Use End",
+            ["Tool"] = plr.Backpack:FindFirstChild("Lethal Whirlwind Stream")
+        }
+    }
+    fireServer(endArgs)
+end
+
+-- Botón normal
+button.MouseButton1Click:Connect(startAutoKyoto)
+
+-- Activar con PadUp (mando)
+local UIS = game:GetService("UserInputService")
+
+UIS.InputBegan:Connect(function(input, isProcessed)
+    if isProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == Enum.KeyCode.DPadUp then
+        startAutoKyoto()
+    end
+end)
