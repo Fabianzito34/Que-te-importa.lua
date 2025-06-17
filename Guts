@@ -3,7 +3,7 @@ if not game:IsLoaded() then
 end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
@@ -17,16 +17,21 @@ local SilentAimSettings = {
 }
 
 local function getDirection(origin, position)
-    return (position - origin).Unit * 1000
+    if typeof(origin) == "Vector3" and typeof(position) == "Vector3" then
+        return (position - origin).Unit * 1000
+    end
 end
 
 local function getMousePosition()
-    return game:GetService("UserInputService"):GetMouseLocation()
+    return UserInputService:GetMouseLocation()
 end
 
 local function WorldToScreenPosition(worldPos)
-    local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
-    return Vector2.new(screenPos.X, screenPos.Y), onScreen
+    if typeof(worldPos) == "Vector3" then
+        local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
+        return Vector2.new(screenPos.X, screenPos.Y), onScreen
+    end
+    return Vector2.zero, false
 end
 
 local function CalculateChance(percentage)
@@ -39,19 +44,19 @@ local function getClosestPlayer()
     local shortestDistance = math.huge
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(SilentAimSettings.TargetPart) then
-            if SilentAimSettings.TeamCheck and player.Team == LocalPlayer.Team then continue end
+        if player ~= LocalPlayer and player.Character then
+            local part = player.Character:FindFirstChild(SilentAimSettings.TargetPart)
+            if part and part:IsA("BasePart") then
+                if SilentAimSettings.TeamCheck and player.Team == LocalPlayer.Team then continue end
+                local screenPos, onScreen = WorldToScreenPosition(part.Position)
+                if not onScreen then continue end
 
-            local part = player.Character[SilentAimSettings.TargetPart]
-            local screenPos, onScreen = WorldToScreenPosition(part.Position)
-            if not onScreen then continue end
-
-            local mousePos = getMousePosition()
-            local distance = (mousePos - screenPos).Magnitude
-
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPart = part
+                local mousePos = getMousePosition()
+                local distance = (mousePos - screenPos).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPart = part
+                end
             end
         end
     end
@@ -61,20 +66,31 @@ end
 
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-    local args = {...}
-    local method = getnamecallmethod()
-    local self = args[1]
+    local success, result = pcall(function(...)
+        local args = {...}
+        local method = getnamecallmethod()
+        local self = args[1]
 
-    if not checkcaller() and SilentAimSettings.Enabled and self == workspace and method == "Raycast" and SilentAimSettings.SilentAimMethod == "Raycast" then
-        if #args >= 4 and typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" and typeof(args[4]) == "RaycastParams" then
-            local origin = args[2]
-            local targetPart = getClosestPlayer()
-            if targetPart and CalculateChance(SilentAimSettings.HitChance) then
-                args[3] = getDirection(origin, targetPart.Position)
-                return oldNamecall(unpack(args))
+        if not checkcaller() and SilentAimSettings.Enabled and self == workspace and method == "Raycast" and SilentAimSettings.SilentAimMethod == "Raycast" then
+            if #args >= 4 and typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" and typeof(args[4]) == "RaycastParams" then
+                local origin = args[2]
+                local targetPart = getClosestPlayer()
+                if targetPart and CalculateChance(SilentAimSettings.HitChance) then
+                    local direction = getDirection(origin, targetPart.Position)
+                    if direction then
+                        args[3] = direction
+                        return oldNamecall(unpack(args))
+                    end
+                end
             end
         end
+
+        return oldNamecall(...)
+    end, ...)
+
+    if not success then
+        warn("[SilentAim Raycast Error]:", result)
     end
 
-    return oldNamecall(...)
+    return result
 end))
