@@ -1,558 +1,80 @@
---// Servicios de Roblox
-local UserInputService = game:GetService("UserInputService")
+if not game:IsLoaded() then 
+    game.Loaded:Wait()
+end
+
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
---// INICIO DE TU NUEVA UI LIBRARY SIMPLE
+local SilentAimSettings = {
+    Enabled = true,
+    TeamCheck = false,
+    VisibleCheck = false,
+    TargetPart = "HumanoidRootPart",
+    SilentAimMethod = "Raycast",
+    HitChance = 100
+}
 
-local SimpleUI = {}
-SimpleUI.__index = SimpleUI
+local function getDirection(origin, position)
+    return (position - origin).Unit * 1000
+end
 
--- Propiedades de la UI
-local UI_ROOT_NAME = "SimpleCombatUI"
-local UI_MAIN_FRAME = nil -- Se asignará al crear la ventana
-local UI_VISIBLE = true -- Estado inicial de la UI
-local UI_TOGGLE_KEY = Enum.KeyCode.RightAlt -- Tecla para mostrar/ocultar la UI
+local function getMousePosition()
+    return game:GetService("UserInputService"):GetMouseLocation()
+end
 
--- Función para crear la ventana principal de la UI
-function SimpleUI:CreateWindow()
-    -- Eliminar UI existente si hay una
-    local existingUI = LocalPlayer.PlayerGui:FindFirstChild(UI_ROOT_NAME)
-    if existingUI then
-        existingUI:Destroy()
-    end
+local function WorldToScreenPosition(worldPos)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
+    return Vector2.new(screenPos.X, screenPos.Y), onScreen
+end
 
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = UI_ROOT_NAME
-    ScreenGui.Parent = LocalPlayer.PlayerGui
+local function CalculateChance(percentage)
+    local chance = math.random()
+    return chance <= (percentage / 100)
+end
 
-    -- Frame principal de la ventana (fondo oscuro)
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 300, 0, 350) -- Tamaño fijo
-    MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -MainFrame.Size.Y.Offset/2) -- Centrado
-    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Gris oscuro
-    MainFrame.BorderSizePixel = 0
-    MainFrame.ClipsDescendants = true -- Para que la imagen de fondo no se salga
-    MainFrame.Parent = ScreenGui
+local function getClosestPlayer()
+    local closestPart = nil
+    local shortestDistance = math.huge
 
-    -- Imagen de Snorlax en el fondo (oscurecida)
-    local SnorlaxImage = Instance.new("ImageLabel")
-    SnorlaxImage.Name = "SnorlaxBackground"
-    SnorlaxImage.BackgroundTransparency = 1
-    SnorlaxImage.Image = "rbxassetid://628678667" -- ID de imagen de Snorlax (un poco oscura)
-    SnorlaxImage.ImageColor3 = Color3.fromRGB(150, 150, 150) -- Oscurece la imagen
-    SnorlaxImage.ScaleType = Enum.ScaleType.Fit
-    SnorlaxImage.Size = UDim2.new(1, 0, 1, 0)
-    SnorlaxImage.Position = UDim2.new(0, 0, 0, 0)
-    SnorlaxImage.ZIndex = 0
-    SnorlaxImage.Parent = MainFrame
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(SilentAimSettings.TargetPart) then
+            if SilentAimSettings.TeamCheck and player.Team == LocalPlayer.Team then continue end
 
-    -- Overlay oscuro para la imagen (más oscuro)
-    local DarkOverlay = Instance.new("Frame")
-    DarkOverlay.Name = "DarkOverlay"
-    DarkOverlay.Size = UDim2.new(1, 0, 1, 0)
-    DarkOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    DarkOverlay.BackgroundTransparency = 0.6 -- Ajusta la transparencia para el efecto oscuro
-    DarkOverlay.BorderSizePixel = 0
-    DarkOverlay.ZIndex = 1
-    DarkOverlay.Parent = MainFrame
-    
-    -- UIListLayout para organizar los elementos de la ventana
-    local ListLayout = Instance.new("UIListLayout")
-    ListLayout.Name = "MainLayout"
-    ListLayout.Padding = UDim.new(0, 5)
-    ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    ListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    ListLayout.Parent = MainFrame
+            local part = player.Character[SilentAimSettings.TargetPart]
+            local screenPos, onScreen = WorldToScreenPosition(part.Position)
+            if not onScreen then continue end
 
-    -- Título de la UI
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Name = "Title"
-    TitleLabel.Size = UDim2.new(1, 0, 0, 30)
-    TitleLabel.Text = "Roblox Combat Features"
-    TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
-    TitleLabel.Font = Enum.Font.SourceSansBold
-    TitleLabel.TextSize = 20
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.ZIndex = 2
-    TitleLabel.Parent = MainFrame
+            local mousePos = getMousePosition()
+            local distance = (mousePos - screenPos).Magnitude
 
-    -- Frame para los elementos interactivos (botones, toggles)
-    local ContentFrame = Instance.new("Frame")
-    ContentFrame.Name = "ContentFrame"
-    ContentFrame.Size = UDim2.new(1, -20, 1, -40) -- Un poco más pequeño que el MainFrame
-    ContentFrame.Position = UDim2.new(0, 10, 0, 35)
-    ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    ContentFrame.BackgroundTransparency = 0.5
-    ContentFrame.BorderSizePixel = 0
-    ContentFrame.ZIndex = 2
-    ContentFrame.Parent = MainFrame
-
-    local ContentListLayout = Instance.new("UIListLayout")
-    ContentListLayout.Name = "ContentLayout"
-    ContentListLayout.Padding = UDim.new(0, 10)
-    ContentListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    ContentListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-    ContentListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    ContentListLayout.Parent = ContentFrame
-
-    UI_MAIN_FRAME = MainFrame -- Guardar referencia al frame principal
-
-    -- Función para mostrar/ocultar la UI
-    function SimpleUI:ToggleUI(visible)
-        UI_VISIBLE = visible
-        local targetTransparency = visible and 0 or 1
-        local targetPosition = visible and UDim2.new(0.5, -MainFrame.Size.X.Offset/2, 0.5, -MainFrame.Size.Y.Offset/2)
-                                       or UDim2.new(0.5, -MainFrame.Size.X.Offset/2, -1, 0) -- Mueve fuera de pantalla
-        
-        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        
-        -- Tween para transparencia del frame principal
-        local transparencyTween = TweenService:Create(MainFrame, tweenInfo, {BackgroundTransparency = targetTransparency})
-        transparencyTween:Play()
-
-        -- Tween para posición del frame principal
-        local positionTween = TweenService:Create(MainFrame, tweenInfo, {Position = targetPosition})
-        positionTween:Play()
-
-        -- Tween para transparencia de los elementos hijos
-        for _, child in ipairs(MainFrame:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
-                 if child.Name ~= "SnorlaxBackground" and child.Name ~= "DarkOverlay" then -- Excluir la imagen de fondo y su overlay
-                    local childTransparency = visible and 0 or 1
-                    local childTween = TweenService:Create(child, tweenInfo, {BackgroundTransparency = childTransparency, TextTransparency = childTransparency, ImageTransparency = childTransparency})
-                    childTween:Play()
-                 end
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestPart = part
             end
         end
     end
 
-    -- Escuchar la tecla para mostrar/ocultar
-    UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-        if not gameProcessedEvent and input.KeyCode == UI_TOGGLE_KEY then
-            self:ToggleUI(not UI_VISIBLE)
-        end
-    end)
-
-    return ContentFrame -- Devuelve el ContentFrame para añadir elementos
+    return closestPart
 end
 
--- Función para añadir un Toggle a la UI
-function SimpleUI:AddToggle(parentFrame, title, description, defaultState, callback)
-    local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Name = "Toggle"
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    ToggleFrame.BackgroundTransparency = 0.5
-    ToggleFrame.BorderSizePixel = 0
-    ToggleFrame.Parent = parentFrame
-    
-    local ToggleListLayout = Instance.new("UIListLayout")
-    ToggleListLayout.Name = "ToggleLayout"
-    ToggleListLayout.Padding = UDim.new(0, 2)
-    ToggleListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    ToggleListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    ToggleListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    ToggleListLayout.Parent = ToggleFrame
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local args = {...}
+    local method = getnamecallmethod()
+    local self = args[1]
 
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Name = "Title"
-    TitleLabel.Size = UDim2.new(0.8, 0, 0, 20)
-    TitleLabel.Position = UDim2.new(0, 10, 0, 5)
-    TitleLabel.Text = title
-    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleLabel.Font = Enum.Font.SourceSansSemibold
-    TitleLabel.TextSize = 16
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Parent = ToggleFrame
-
-    local DescLabel = Instance.new("TextLabel")
-    DescLabel.Name = "Description"
-    DescLabel.Size = UDim2.new(0.8, 0, 0, 15)
-    DescLabel.Position = UDim2.new(0, 10, 0, 25)
-    DescLabel.Text = description
-    DescLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    DescLabel.Font = Enum.Font.SourceSansLight
-    DescLabel.TextSize = 12
-    DescLabel.TextXAlignment = Enum.TextXAlignment.Left
-    DescLabel.BackgroundTransparency = 1
-    DescLabel.Parent = ToggleFrame
-
-    local ToggleButton = Instance.new("TextButton")
-    ToggleButton.Name = "ToggleButton"
-    ToggleButton.Size = UDim2.new(0, 50, 0, 25)
-    ToggleButton.Position = UDim2.new(1, -60, 0.5, -12.5) -- Posición a la derecha
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80) -- Color por defecto (OFF)
-    ToggleButton.Text = "OFF"
-    ToggleButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-    ToggleButton.Font = Enum.Font.SourceSansBold
-    ToggleButton.TextSize = 14
-    ToggleButton.ZIndex = 2
-    ToggleButton.Parent = ToggleFrame
-    
-    local currentState = defaultState
-    local function updateToggleVisual()
-        if currentState then
-            ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Verde (ON)
-            ToggleButton.Text = "ON"
-        else
-            ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80) -- Gris (OFF)
-            ToggleButton.Text = "OFF"
-        end
-    end
-
-    updateToggleVisual() -- Establecer el estado visual inicial
-
-    ToggleButton.MouseButton1Click:Connect(function()
-        currentState = not currentState
-        updateToggleVisual()
-        if callback then
-            callback(currentState)
-        end
-    end)
-    
-    -- Establecer el callback inicial para que la función se active/desactive al inicio
-    if callback then
-        callback(currentState)
-    end
-end
-
-local UI = SimpleUI.new() -- Instancia de la UI
-
--- FIN DE TU NUEVA UI LIBRARY SIMPLE
---// Kill Aura
-local observerOnline = false
-local killAuraToggled = false -- Controlado por la UI ahora
-local toolEquip = true 
-local isDead = false 
-
-local raycastParams = RaycastParams.new()
-raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-local params = OverlapParams.new()
-params.FilterDescendantsInstances = {LocalPlayer.Character}
-
-local function detectEnemy(hitbox, hrp)
-    print("Kill Aura: Iniciando detección de enemigos!")
-    while true do
-        if killAuraToggled == false or not hrp.Parent or not hitbox.Parent then 
-            print("Kill Aura: Detección de enemigos detenida.")
-            isDead = false
-            observerOnline = false
-            return nil
-        end
-
-        local parts = Workspace:GetPartsInPart(hitbox, params)
-        for i, part in pairs(parts) do
-            if part.parent and part.parent.Name == "m_Zombie" then
-                local Origin = part.parent:WaitForChild("Orig", 5) 
-                if Origin and Origin.Value ~= nil then
-                    local zombie = Origin.Value:WaitForChild("Zombie", 5) 
-                    if not zombie then continue end 
-
-                    if LocalPlayer.Character and toolEquip then 
-                        local hit = Origin.Value
-                        local zombieHeadPart = hit:FindFirstChild("Head")
-                        if not zombieHeadPart then continue end
-
-                        local zombieHead = Workspace:Raycast(hrp.CFrame.Position, zombieHeadPart.CFrame.Position - hrp.CFrame.Position)
-                        local rayHitPosition = zombieHead and zombieHead.Position or zombieHeadPart.CFrame.Position
-                        local rayHitNormal = zombieHead and zombieHead.Normal or Vector3.new(0,1,0)
-
-                        local calc = (rayHitPosition - hrp.CFrame.Position)
-
-                        if calc:Dot(calc) > 1 then
-                            calc = calc.Unit
-                        end
-
-                        if LocalPlayer:DistanceFromCharacter(Origin.Value:FindFirstChild("HumanoidRootPart").CFrame.Position) < 13 then
-                            if zombie.WalkSpeed > 16 then
-                                ReplicatedStorage.Remotes.Gib:FireServer(hit, "Head", rayHitPosition, rayHitNormal, true)
-                                Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
-                                Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, rayHitPosition, true, calc * 25, "Head", rayHitNormal)
-                            else
-                                if part.Parent:FindFirstChild("Barrel") == nil then
-                                    ReplicatedStorage.Remotes.Gib:FireServer(hit, "Head", rayHitPosition, rayHitNormal, true)
-                                    Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("Swing", "Thrust")
-                                    Workspace.Players[LocalPlayer.Name]["Heavy Sabre"].RemoteEvent:FireServer("HitZombie", hit, rayHitPosition, true, calc * 25, "Head", rayHitNormal)
-                                end
-                            end
-                        end
-                    end
-                end
+    if not checkcaller() and SilentAimSettings.Enabled and self == workspace and method == "Raycast" and SilentAimSettings.SilentAimMethod == "Raycast" then
+        if #args >= 4 and typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" and typeof(args[4]) == "RaycastParams" then
+            local origin = args[2]
+            local targetPart = getClosestPlayer()
+            if targetPart and CalculateChance(SilentAimSettings.HitChance) then
+                args[3] = getDirection(origin, targetPart.Position)
+                return oldNamecall(unpack(args))
             end
         end
-        RunService.Heartbeat:Wait() -- Usar Heartbeat:Wait() para loops en lugar de task.wait() para mejor rendimiento en loops continuos.
     end
-end
 
-local function createHitBox()
-    observerOnline = false 
-    local character = LocalPlayer.Character
-    if not character then warn("Kill Aura: Personaje no encontrado para crear hitbox."); return false end
-    local torso = character:WaitForChild("HumanoidRootPart", 5)
-    if not torso then warn("Kill Aura: HumanoidRootPart no encontrada para crear hitbox."); return false end
-
-    local hitbox = torso:FindFirstChild("Hitbox")
-    if hitbox then
-        if observerOnline == false then
-            observerOnline = true
-            task.spawn(detectEnemy, hitbox, torso)
-        end
-        return true
-    else
-        hitbox = Instance.new("Part")
-        hitbox.Name = "Hitbox"
-        hitbox.Anchored = false
-        hitbox.Massless = true
-        hitbox.CanCollide = false
-        hitbox.CanTouch = false
-        hitbox.Transparency  = 1
-        hitbox.Size = Vector3.new(13, 7, 12.5)
-        hitbox.Parent = torso
-
-        local weld = Instance.new("WeldConstraint", torso)
-        weld.Part0 = hitbox
-        weld.Part1 = LocalPlayer.Character.HumanoidRootPart
-
-        if observerOnline == false then
-            observerOnline = true
-            task.spawn(detectEnemy, hitbox, torso)
-        end
-        return true
-    end
-end
--- Soporte de Bayoneta
-local FlintLock = require(ReplicatedStorage.Modules.Weapons:waitForChild("Flintlock"))
-local originalBayonetHitCheck = FlintLock.BayonetHitCheck
-
-local v_u_1 = {} 
-v_u_1.__index = v_u_1
-
-function v_u_1.BayonetHitCheck(p115, p116, p117, p118, p119)
-    local v120 = Workspace:Raycast(p116, p117, p118)
-    if v120 then
-        if v120.Instance.Parent.Name == "m_Zombie" then
-            local v121 = p118.FilterDescendantsInstances
-            local v122 = v120.Instance
-            table.insert(v121, v122)
-            p118.FilterDescendantsInstances = v121
-            local v123 = v120.Instance.Parent:FindFirstChild("Orig")
-            if v123 then
-                local Head = ""
-                for i, part in pairs(v120.Instance.Parent:GetChildren()) do
-                    if part.Name == "Head" and (part.ClassName == "Part" or part.ClassName == "MeshPart") then
-                        Head = part
-                        break 
-                    end
-                end
-                if Head ~= "" then 
-                    p115.remoteEvent:FireServer("Bayonet_HitZombie", v123.Value, Head.CFrame.Position, true, "Head")
-                    local v_u_124 = v123.Value
-                    local v_u_125 = tick()
-                    v_u_124:SetAttribute("WepHitID", tick())
-                    v_u_124:SetAttribute("WepHitDirection", p117 * 10)
-                    v_u_124:SetAttribute("WepHitPos", v120.Position)
-                    task.delay(0.2, function()
-                        if v_u_124:GetAttribute("WepHitID") == v_u_125 then
-                            v_u_124:SetAttribute("WepHitDirection", nil)
-                            v_u_124:SetAttribute("WepHitPos", nil)
-                            v_u_124:SetAttribute("WepHitID", nil)
-                        end
-                    end)
-                end
-            end
-            return 1
-        end
-        local v126 = v120.Instance.Parent:FindFirstChild("DoorHit") or v120.Instance:FindFirstChild("BreakGlass")
-        if v126 and not table.find(p119, v126) then
-            table.insert(p119, v126)
-            p115.remoteEvent:FireServer("Bayonet_HitCon", v120.Instance, v120.Position, v120.Normal, v120.Material)
-            return 2
-        end
-        local v127 = v120.Instance.Parent:FindFirstChild("Humanoid") or (v120.Instance.Parent.Parent and v120.Instance.Parent.Parent:FindFirstChild("Humanoid"))
-        if v127 and not table.find(p119, v127) then
-            table.insert(p119, v127)
-            p115.remoteEvent:FireServer("Bayonet_HitPlayer", v127, v120.Position)
-            return 2
-        end
-    end
-    return 0
-end
-
-local function changeBayonet(value)
-   if value then
-      print("Bayoneta: Función de impacto modificada.")
-      FlintLock.BayonetHitCheck = v_u_1.BayonetHitCheck
-   else
-      print("Bayoneta: Función de impacto restaurada.")
-      FlintLock.BayonetHitCheck = originalBayonetHitCheck
-   end
-end
-
--- Soporte de Melee
-local MeleeBase = require(ReplicatedStorage.Modules.Weapons:waitForChild("MeleeBase"))
-local originalMeleeHitCheck = MeleeBase.MeleeHitCheck
-
-local u1 = {} 
-u1.__index = u1
-
-function u1.MeleeHitCheck(p100, p101, p102, p103, p104, p105)
-    local v106 = Workspace:Raycast(p101, p102, p103)
-    if v106 then
-        if v106.Instance.Parent.Name == "m_Zombie" then
-            local v107 = p103.FilterDescendantsInstances
-            local v108 = v106.Instance
-            table.insert(v107, v108)
-            p103.FilterDescendantsInstances = v107
-            local v109 = v106.Instance.Parent:FindFirstChild("Orig")
-            if v109 then
-                if p100.sharp and shared.Gib ~= nil then
-                    if v109.Value then
-                        local v110 = v109.Value:FindFirstChild("Zombie")
-                        local v111 = not p100.Stats.HeadshotMulti and 2.3 or p100.Stats.HeadshotMulti
-                        if v110 and v110.Health - p100.Stats.Damage * v111 <= 0 then
-                            shared.Gib(v109.Value, v106.Instance.Name, v106.Position, v106.Normal, true)
-                        end
-                    else
-                        shared.Gib(v109.Value, v106.Instance.Name, v106.Position, v106.Normal, true)
-                    end
-                end
-                if not p104[v109] or p104[v109] < (p100.Stats.MaxHits or 3) then
-                    if p105 then
-                        p100.remoteEvent:FireServer("ThrustCharge", v109.Value, v106.Position, v106.Normal)
-                    else
-                        local Head = ""
-                        for i, part in pairs(v106.Instance.Parent:GetChildren()) do
-                            if part.Name == "Head" and (part.ClassName == "Part" or part.ClassName == "MeshPart") then
-                                Head = part
-                                break 
-                            end
-                        end
-                        if Head ~= "" then 
-                            local u112 = v109.Value
-                            local v113 = Head.CFrame.Position - p101
-                            if v113:Dot(v113) > 1 then
-                                v113 = v113.Unit
-                            end
-                            local v114 = v113 * 25
-                            p100.remoteEvent:FireServer("HitZombie", u112, Head.CFrame.Position, true, v114, "Head", v106.Normal)
-                            if not u112:GetAttribute("WepHitDirection") then
-                                local u115 = tick()
-                                u112:SetAttribute("WepHitID", tick())
-                                u112:SetAttribute("WepHitDirection", v114)
-                                u112:SetAttribute("WepHitPos", v106.Position)
-                                task.delay(0.2, function()
-                                    if u112:GetAttribute("WepHitID") == u115 then
-                                        u112:SetAttribute("WepHitDirection", nil)
-                                        u112:SetAttribute("WepHitPos", nil)
-                                        u112:SetAttribute("WepHitID", nil)
-                                    end
-                                end)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        local v127 = v106.Instance.Parent:FindFirstChild("Humanoid") or (v106.Instance.Parent.Parent and v106.Instance.Parent.Parent:FindFirstChild("Humanoid"))
-        if v127 and not table.find(p105, v127) then
-            table.insert(p105, v127)
-            p100.remoteEvent:FireServer("HitPlayer", v127, v106.Position)
-            return 2
-        end
-        local v126 = v106.Instance.Parent:FindFirstChild("DoorHit") or v106.Instance:FindFirstChild("BreakGlass")
-        if v126 and not table.find(p105, v126) then
-            table.insert(p105, v126)
-            p100.remoteEvent:FireServer("HitCon", v106.Instance, v106.Position, v106.Normal, v106.Material)
-            return 2
-        end
-    end
-    return 0
-end
-
-local function changeMelee(value)
-   if value then
-      print("Melee: Función de impacto modificada.")
-      MeleeBase.MeleeHitCheck = u1.MeleeHitCheck
-   else
-      print("Melee: Función de impacto restaurada.")
-      MeleeBase.MeleeHitCheck = originalMeleeHitCheck
-   end
-end
-
----
-## Integración de UI y Funciones de Combate
-
--- Crear la ventana principal de la UI
-local UIContentFrame = UI:CreateWindow()
-
--- Añadir Toggles a la UI
-UI:AddToggle(UIContentFrame, "Activar Kill Aura", "Ataca automáticamente a los zombies cercanos.", false, function(Boolean)
-    killAuraToggled = Boolean
-    if Boolean then
-        task.spawn(createHitBox)
-        print("Kill Aura: Activado.")
-    else
-        print("Kill Aura: Desactivado.")
-    end
-end)
-
-UI:AddToggle(UIContentFrame, "Modificador de Bayoneta", "Prioriza headshots con bayonetas.", false, function(Boolean)
-    changeBayonet(Boolean)
-    if Boolean then
-        print("Modificador de Bayoneta: Activado.")
-    else
-        print("Modificador de Bayoneta: Desactivado.")
-    end
-end)
-
-UI:AddToggle(UIContentFrame, "Modificador de Melee", "Prioriza headshots y 'gib' con ataques melee.", false, function(Boolean)
-    changeMelee(Boolean)
-    if Boolean then
-        print("Modificador de Melee: Activado.")
-    else
-        print("Modificador de Melee: Desactivado.")
-    end
-end)
-
----
-## Lógica de Re-ejecución al Reaparecer
-
-local function initializeCombatFeatures()
-    -- Si Kill Aura estaba activado por la UI, se reinicia al reaparecer.
-    -- Las funciones de modificador de armas no necesitan ser llamadas aquí
-    -- porque los hooks (`FlintLock.BayonetHitCheck = ...`) persisten
-    -- a menos que el juego las reestablezca explícitamente, lo cual es raro para hooks.
-    -- Si notas que los modificadores de arma se desactivan al morir,
-    -- podrías almacenar su estado en una variable y restablecerlo aquí.
-    if killAuraToggled then
-        task.spawn(createHitBox)
-    end
-end
-
--- Conecta la función de inicialización al evento CharacterAdded del jugador local
--- Esto asegura que las características se re-inicialicen cada vez que el personaje reaparece.
-LocalPlayer.CharacterAdded:Connect(function(character)
-    -- Espera un momento para que el personaje esté completamente configurado
-    character:WaitForChild("HumanoidRootPart", 10) 
-    initializeCombatFeatures()
-end)
-
--- Llama a la función una vez al inicio, en caso de que el personaje ya esté cargado al ejecutar el script.
-if LocalPlayer.Character then
-    LocalPlayer.Character:WaitForChild("HumanoidRootPart", 10) 
-    initializeCombatFeatures()
-end
-
--- Asegurarse de que la UI esté visible al inicio
-UI:ToggleUI(true)
-print("UI cargada y lista. Presiona ALT DERECHO para ocultar/mostrar.")
+    return oldNamecall(...)
+end))
