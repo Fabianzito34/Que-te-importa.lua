@@ -1,45 +1,105 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
-local silentAimEnabled = true
 
-local function getClosestPlayerToCursor()
-	local closestPlayer = nil
-	local shortestDistance = math.huge
+local SilentAimSettings = {
+    Enabled = true,
+    TargetPart = "HumanoidRootPart",
+    FOVRadius = 130,
+    HitChance = 100
+}
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-			local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-			if onScreen and distance < shortestDistance then
-				shortestDistance = distance
-				closestPlayer = player
-			end
-		end
-	end
+local function CalculateChance(Percentage)
+    local chance = math.floor(Random.new():NextNumber(0, 1) * 100)
+    return chance <= Percentage
+end
 
-	return closestPlayer
+local function getMousePosition()
+    return UserInputService:GetMouseLocation()
+end
+
+local function getPositionOnScreen(Vector)
+    local Vec3, OnScreen = Camera:WorldToScreenPoint(Vector)
+    return Vector2.new(Vec3.X, Vec3.Y), OnScreen
+end
+
+local function getDirection(Origin, Position)
+    return (Position - Origin).Unit * 1000
+end
+
+local function getClosestPlayer()
+    local Closest = nil
+    local DistanceToMouse = nil
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local Humanoid = Player.Character:FindFirstChild("Humanoid")
+            if Humanoid and Humanoid.Health > 0 then
+                local ScreenPosition, OnScreen = getPositionOnScreen(Player.Character.HumanoidRootPart.Position)
+                if OnScreen then
+                    local Distance = (getMousePosition() - ScreenPosition).Magnitude
+                    if Distance <= (DistanceToMouse or SilentAimSettings.FOVRadius) then
+                        DistanceToMouse = Distance
+                        Closest = Player.Character[SilentAimSettings.TargetPart]
+                    end
+                end
+            end
+        end
+    end
+    return Closest
 end
 
 local function performRaycast()
-	local targetPlayer = getClosestPlayerToCursor()
-	if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-		local origin = workspace.CurrentCamera.CFrame.Position
-		local direction = (targetPlayer.Character.HumanoidRootPart.Position - origin).Unit * 1000
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-		raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-		local result = workspace:Raycast(origin, direction, raycastParams)
+    if not SilentAimSettings.Enabled then return end
+    if not CalculateChance(SilentAimSettings.HitChance) then return end
 
-		if result then
-			print("Impactó en: ", result.Instance:GetFullName())
-		end
-	end
+    local HitPart = getClosestPlayer()
+    if HitPart then
+        local origin = Camera.CFrame.Position
+        local direction = getDirection(origin, HitPart.Position)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        local result = workspace:Raycast(origin, direction, raycastParams)
+        if result then
+            print(result.Instance:GetFullName())
+        end
+    end
 end
 
 Mouse.Button1Down:Connect(function()
-	if silentAimEnabled then
-		performRaycast()
-	end
+    performRaycast()
 end)
+
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+    local args = {...}
+    local self = args[1]
+    local method = getnamecallmethod()
+    if not checkcaller() and method == "Raycast" and SilentAimSettings.Enabled and CalculateChance(SilentAimSettings.HitChance) then
+        if self == workspace then
+            local origin = args[2]
+            local target = getClosestPlayer()
+            if target then
+                args[3] = getDirection(origin, target.Position)
+                return oldNamecall(unpack(args))
+            end
+        end
+    end
+    return oldNamecall(...)
+end))
+
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+    if self == Mouse and not checkcaller() and SilentAimSettings.Enabled and getClosestPlayer() then
+        local HitPart = getClosestPlayer()
+        if key == "Target" then
+            return HitPart
+        elseif key == "Hit" then
+            return HitPart.CFrame
+        end
+    end
+    return oldIndex(self, key)
+end))
