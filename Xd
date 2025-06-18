@@ -1,13 +1,13 @@
--- SERVICIOS
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- VARIABLES
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- CONFIGURACIÓN
+
 local SilentAimSettings = {
     Enabled = true,
     TargetPart = "HumanoidRootPart",
@@ -15,7 +15,7 @@ local SilentAimSettings = {
     HitChance = 100
 }
 
--- FUNCIONES DE UTILIDAD
+
 local function CalculateChance(Percentage)
     local chance = math.floor(Random.new():NextNumber(0, 1) * 100)
     return chance <= Percentage
@@ -64,7 +64,6 @@ local function getClosestPlayer()
     return Closest
 end
 
--- HOOKS
 local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     local args = {...}
@@ -107,7 +106,6 @@ oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
     if ok then return result end
 end))
 
--- DISPARADOR MANUAL DE PRUEBA
 LocalPlayer:GetMouse().Button1Down:Connect(function()
     if SilentAimSettings.Enabled then
         local target = getClosestPlayer()
