@@ -1,276 +1,45 @@
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
-
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+local silentAimEnabled = true
 
-local Window = Fluent:CreateWindow({
-    Title = "Fluent " .. Fluent.Version,
-    SubTitle = "by dawid",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
+local function getClosestPlayerToCursor()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main" }),
-    Settings = Window:AddTab({ Title = "Settings" })
-}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+			local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+			if onScreen and distance < shortestDistance then
+				shortestDistance = distance
+				closestPlayer = player
+			end
+		end
+	end
 
-local SilentAimSettings = {
-    Enabled = false,
-    TargetPart = "HumanoidRootPart",
-    SilentAimMethod = "Raycast",
-    FOVRadius = 130,
-    TeamCheck = false,
-    VisibleCheck = false,
-    HitChance = 100,
-    PredictionAmount = 0.165,
-    ShowFOV = false,
-    ShowTargetBox = false
-}
-
-local ValidTargetParts = {"Head", "HumanoidRootPart"}
-
-Tabs.Main:AddSection("Silent Aim Settings")
-Tabs.Main:AddToggle("SilentAimEnabled", {
-    Title = "Silent Aim Enabled",
-    Default = SilentAimSettings.Enabled,
-    Callback = function(value) SilentAimSettings.Enabled = value end
-})
-
-Tabs.Main:AddDropdown("TargetPartDropdown", {
-    Title = "Target Part",
-    Values = {"Head", "HumanoidRootPart", "Random"},
-    Default = SilentAimSettings.TargetPart,
-    Callback = function(value) SilentAimSettings.TargetPart = value end
-})
-
-Tabs.Main:AddDropdown("SilentAimMethodDropdown", {
-    Title = "Silent Aim Method",
-    Values = {"Raycast", "FindPartOnRay", "Mouse.Hit"},
-    Default = SilentAimSettings.SilentAimMethod,
-    Callback = function(value) SilentAimSettings.SilentAimMethod = value end
-})
-
-Tabs.Main:AddSlider("FOVRadiusSlider", {
-    Title = "FOV Radius",
-    Min = 1,
-    Max = 500,
-    Default = SilentAimSettings.FOVRadius,
-    Callback = function(value) SilentAimSettings.FOVRadius = value end
-})
-
-Tabs.Main:AddToggle("TeamCheckToggle", {
-    Title = "Team Check",
-    Default = SilentAimSettings.TeamCheck,
-    Callback = function(value) SilentAimSettings.TeamCheck = value end
-})
-
-Tabs.Main:AddToggle("VisibleCheckToggle", {
-    Title = "Visible Check",
-    Default = SilentAimSettings.VisibleCheck,
-    Callback = function(value) SilentAimSettings.VisibleCheck = value end
-})
-
-Tabs.Main:AddSlider("HitChanceSlider", {
-    Title = "Hit Chance %",
-    Min = 0,
-    Max = 100,
-    Default = SilentAimSettings.HitChance,
-    Callback = function(value) SilentAimSettings.HitChance = value end
-})
-
-Tabs.Main:AddSlider("PredictionSlider", {
-    Title = "Prediction Amount",
-    Min = 0,
-    Max = 1,
-    Increment = 0.01,
-    Default = SilentAimSettings.PredictionAmount,
-    Callback = function(value) SilentAimSettings.PredictionAmount = value end
-})
-
-Tabs.Main:AddToggle("ShowFOVToggle", {
-    Title = "Show FOV Circle",
-    Default = SilentAimSettings.ShowFOV,
-    Callback = function(value) SilentAimSettings.ShowFOV = value end
-})
-
-Tabs.Main:AddToggle("ShowTargetBoxToggle", {
-    Title = "Show Target Box",
-    Default = SilentAimSettings.ShowTargetBox,
-    Callback = function(value) SilentAimSettings.ShowTargetBox = value end
-})
-
-local fov_circle = Drawing.new("Circle")
-fov_circle.Thickness = 1
-fov_circle.NumSides = 100
-fov_circle.Filled = false
-fov_circle.Visible = false
-fov_circle.ZIndex = 999
-fov_circle.Transparency = 0.5
-fov_circle.Color = Color3.fromRGB(54, 57, 241)
-
-local mouse_box = Drawing.new("Square")
-mouse_box.Thickness = 2
-mouse_box.Size = Vector2.new(20, 20)
-mouse_box.Filled = false
-mouse_box.Visible = false
-mouse_box.ZIndex = 999
-mouse_box.Color = Color3.fromRGB(54, 57, 241)
-
-local function CalculateChance(Percentage)
-    local chance = Random.new():NextNumber(0, 1)
-    return chance <= Percentage / 100
+	return closestPlayer
 end
 
-local function getPositionOnScreen(Vector)
-    local Vec3, OnScreen = Camera:WorldToScreenPoint(Vector)
-    return Vector2.new(Vec3.X, Vec3.Y), OnScreen
+local function performRaycast()
+	local targetPlayer = getClosestPlayerToCursor()
+	if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local origin = workspace.CurrentCamera.CFrame.Position
+		local direction = (targetPlayer.Character.HumanoidRootPart.Position - origin).Unit * 1000
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+		raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+		local result = workspace:Raycast(origin, direction, raycastParams)
+
+		if result then
+			print("Impactó en: ", result.Instance:GetFullName())
+		end
+	end
 end
 
-local function getDirection(Origin, Position)
-    return (Position - Origin).Unit * 1000
-end
-
-local function IsPlayerVisible(Player)
-    local PlayerCharacter = Player.Character
-    local LocalPlayerCharacter = LocalPlayer.Character
-    if not (PlayerCharacter and LocalPlayerCharacter) then return false end
-    
-    local PlayerRoot = PlayerCharacter:FindFirstChild("HumanoidRootPart")
-    if not PlayerRoot then return false end
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {LocalPlayerCharacter, PlayerCharacter}
-    
-    local rayResult = workspace:Raycast(Camera.CFrame.Position, (PlayerRoot.Position - Camera.CFrame.Position).Unit * 1000, raycastParams)
-    
-    return rayResult and rayResult.Instance and rayResult.Instance:IsDescendantOf(PlayerCharacter)
-end
-
-local function getClosestPlayer()
-    local ClosestTarget = nil
-    local SmallestDistance = math.huge
-    local MousePosition = UserInputService:GetMouseLocation()
-
-    for _, Player in ipairs(Players:GetPlayers()) do
-        if Player == LocalPlayer then continue end
-        if SilentAimSettings.TeamCheck and Player.Team == LocalPlayer.Team then continue end
-
-        local Character = Player.Character
-        if not Character then continue end
-        
-        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-        if not Humanoid or Humanoid.Health <= 0 then continue end
-
-        local targetPart = nil
-        if SilentAimSettings.TargetPart == "Random" then
-            targetPart = Character:FindFirstChild(ValidTargetParts[math.random(1, #ValidTargetParts)])
-        else
-            targetPart = Character:FindFirstChild(SilentAimSettings.TargetPart)
-        end
-        
-        if not targetPart then continue end
-
-        local ScreenPosition, OnScreen = getPositionOnScreen(targetPart.Position)
-        if not OnScreen then continue end
-
-        local Distance = (MousePosition - ScreenPosition).Magnitude
-        if Distance <= SilentAimSettings.FOVRadius then
-            if SilentAimSettings.VisibleCheck and not IsPlayerVisible(Player) then continue end
-            
-            if Distance < SmallestDistance then
-                SmallestDistance = Distance
-                ClosestTarget = targetPart
-            end
-        end
-    end
-    return ClosestTarget
-end
-
-RunService.RenderStepped:Connect(function()
-    if SilentAimSettings.ShowFOV then
-        fov_circle.Visible = true
-        fov_circle.Radius = SilentAimSettings.FOVRadius
-        fov_circle.Position = UserInputService:GetMouseLocation()
-    else
-        fov_circle.Visible = false
-    end
-
-    if SilentAimSettings.ShowTargetBox and SilentAimSettings.Enabled then
-        local closestPlayer = getClosestPlayer()
-        if closestPlayer then
-            local rootPart = closestPlayer.Parent:FindFirstChild("HumanoidRootPart") or closestPlayer
-            if rootPart then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-                if onScreen then
-                    mouse_box.Visible = true
-                    mouse_box.Position = Vector2.new(screenPos.X, screenPos.Y)
-                else
-                    mouse_box.Visible = false
-                end
-            else
-                mouse_box.Visible = false
-            end
-        else
-            mouse_box.Visible = false
-        end
-    else
-        mouse_box.Visible = false
-    end
+Mouse.Button1Down:Connect(function()
+	if silentAimEnabled then
+		performRaycast()
+	end
 end)
-
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
-    local Method = getnamecallmethod()
-    local Arguments = {...}
-    local self = Arguments[1]
-
-    if SilentAimSettings.Enabled and self == workspace and not checkcaller() and CalculateChance(SilentAimSettings.HitChance) then
-        local HitPart = getClosestPlayer()
-        if HitPart then
-            if Method == "FindPartOnRay" or Method == "findPartOnRay" then
-                if SilentAimSettings.SilentAimMethod == "FindPartOnRay" then
-                    local A_Ray = Arguments[2]
-                    local Origin = A_Ray.Origin
-                    local Direction = getDirection(Origin, HitPart.Position)
-                    Arguments[2] = Ray.new(Origin, Direction)
-                    return oldNamecall(unpack(Arguments))
-                end
-            elseif Method == "Raycast" then
-                if SilentAimSettings.SilentAimMethod == "Raycast" then
-                    local A_Origin = Arguments[2]
-                    Arguments[3] = getDirection(A_Origin, HitPart.Position)
-                    return oldNamecall(unpack(Arguments))
-                end
-            end
-        end
-    end
-    return oldNamecall(...)
-end))
-
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
-    if self == Mouse and not checkcaller() and SilentAimSettings.Enabled and SilentAimSettings.SilentAimMethod == "Mouse.Hit" and CalculateChance(SilentAimSettings.HitChance) then
-        local HitPart = getClosestPlayer()
-        if HitPart then
-            if Index == "Target" or Index == "target" then
-                return HitPart
-            elseif Index == "Hit" or Index == "hit" then
-                local predictedCFrame = HitPart.CFrame
-                if SilentAimSettings.PredictionAmount > 0 and HitPart:IsA("BasePart") then
-                    predictedCFrame = predictedCFrame + (HitPart.Velocity * SilentAimSettings.PredictionAmount)
-                end
-                return predictedCFrame
-            end
-        end
-    end
-    return oldIndex(self, Index)
-end))
