@@ -76,13 +76,30 @@ local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
     return oldNamecall(...)
 end))
 
+local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SilentAim_UI"
+gui.ResetOnSpawn = false
+
+local success, err = pcall(function()
+    gui.Parent = CoreGui
+end)
+
+if not success then
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
 local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 100, 0, 40)
-toggleButton.Position = UDim2.new(0.5, -50, 0.9, 0)
+toggleButton.Size = UDim2.new(0, 140, 0, 50)
+toggleButton.Position = UDim2.new(0.5, -70, 0.85, 0)
 toggleButton.Text = "Silent Aim: OFF"
-toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Parent = game:GetService("CoreGui")
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = gui
 
 toggleButton.MouseButton1Click:Connect(function()
     SilentAim.Enabled = not SilentAim.Enabled
