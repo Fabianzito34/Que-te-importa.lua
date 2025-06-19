@@ -1,116 +1,104 @@
+getgenv().SecureMode = true
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
-
-local Window = Rayfield:CreateWindow({
-    Name = "Silent Aim - King Legacy",
-    LoadingTitle = "Silent Aim Loading...",
-    LoadingSubtitle = "By ChatGPT",
-    ConfigurationSaving = {
-        Enabled = false,
-    },
-    Discord = {
-        Enabled = false,
-    },
-    KeySystem = false,
-})
-
-local MainTab = Window:CreateTab("Main")
-local SilentAimSection = MainTab:CreateSection("Silent Aim")
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local SilentAim = {
     Enabled = true,
-    Range = 200,
+    TeamCheck = false,
+    VisibleCheck = false,
     TargetPart = "HumanoidRootPart",
+    FOVRadius = 200,
+    FOVVisible = false,
+    ShowSilentAimTarget = false,
+    MouseHitPrediction = true,
+    MouseHitPredictionAmount = 0.165,
     HitChance = 100,
-    ConfigFolder = "SilentAim_KingLegacy"
+    ConfigFolder = "SilentAim_KingLegacy_Rayfield"
 }
 
-local function SaveConfig()
-    if not isfolder(SilentAim.ConfigFolder) then makefolder(SilentAim.ConfigFolder) end
-    writefile(SilentAim.ConfigFolder .. "/config.json", HttpService:JSONEncode(SilentAim))
-end
-
-local function LoadConfig()
-    if isfile(SilentAim.ConfigFolder .. "/config.json") then
-        local data = readfile(SilentAim.ConfigFolder .. "/config.json")
-        local loaded = HttpService:JSONDecode(data)
-        for k, v in pairs(loaded) do
-            SilentAim[k] = v
-        end
-    end
-end
-
-LoadConfig()
-
-MainTab:CreateToggle({
-    Name = "Enable Silent Aim",
-    CurrentValue = SilentAim.Enabled,
-    Callback = function(Value)
-        SilentAim.Enabled = Value
-        SaveConfig()
-    end,
+local Window = Rayfield:CreateWindow({
+    Name = "Silent Aim – King Legacy",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = SilentAim.ConfigFolder,
+        FileName = "config"
+    },
+    KeySystem = false
 })
 
-MainTab:CreateSlider({
-    Name = "Hit Chance",
-    Range = {0, 100},
-    Increment = 1,
-    Suffix = "%",
-    CurrentValue = SilentAim.HitChance,
-    Callback = function(Value)
-        SilentAim.HitChance = Value
-        SaveConfig()
-    end,
-})
+local Tab = Window:CreateTab("Settings")
+local Section = Tab:CreateSection("Silent Aim Options")
 
-local function GetClosestTarget()
-    local closest = nil
-    local shortestDistance = SilentAim.Range
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local part = player.Character:FindFirstChild(SilentAim.TargetPart)
-            if humanoid and humanoid.Health > 0 and part then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        closest = part
-                    end
-                end
-            end
+Section:CreateToggle({ Name = "Enabled", CurrentValue = SilentAim.Enabled, Flag = "enableToggle", Callback = function(v) SilentAim.Enabled = v end })
+Section:CreateToggle({ Name = "Team Check", CurrentValue = SilentAim.TeamCheck, Flag = "teamCheck", Callback = function(v) SilentAim.TeamCheck = v end })
+Section:CreateToggle({ Name = "Visible Check", CurrentValue = SilentAim.VisibleCheck, Flag = "visibleCheck", Callback = function(v) SilentAim.VisibleCheck = v end })
+Section:CreateDropdown({ Name = "Target Part", Options = {"Head","HumanoidRootPart","Random"}, CurrentOption = SilentAim.TargetPart, Flag = "targetPart", Callback = function(v) SilentAim.TargetPart = v end })
+Section:CreateToggle({ Name = "Prediction", CurrentValue = SilentAim.MouseHitPrediction, Flag = "predictionToggle", Callback = function(v) SilentAim.MouseHitPrediction = v end })
+Section:CreateSlider({ Name = "Prediction Amt", Range = {0,1}, Increment = 0.01, CurrentValue = SilentAim.MouseHitPredictionAmount, Flag = "predictionAmt", Callback = function(v) SilentAim.MouseHitPredictionAmount = v end })
+Section:CreateSlider({ Name = "FOV Radius", Range = {0,360}, Increment = 1, CurrentValue = SilentAim.FOVRadius, Flag = "fovRadius", Callback = function(v) SilentAim.FOVRadius = v end })
+Section:CreateToggle({ Name = "Show FOV", CurrentValue = SilentAim.FOVVisible, Flag = "showFOV", Callback = function(v) SilentAim.FOVVisible = v end })
+Section:CreateToggle({ Name = "Show Target", CurrentValue = SilentAim.ShowSilentAimTarget, Flag = "showTarget", Callback = function(v) SilentAim.ShowSilentAimTarget = v end })
+Section:CreateSlider({ Name = "Hit Chance %", Range = {0,100}, Increment = 1, CurrentValue = SilentAim.HitChance, Flag = "hitChance", Callback = function(v) SilentAim.HitChance = v end })
+
+local fov_circle = Drawing.new("Circle")
+local mouse_box = Drawing.new("Square")
+fov_circle.Thickness, fov_circle.NumSides, fov_circle.Filled, fov_circle.ZIndex = 1, 100, false, 999
+mouse_box.Thickness, mouse_box.Filled, mouse_box.ZIndex = 20, true, 999
+fov_circle.Color = Color3.new(0,1,0)
+mouse_box.Color = Color3.new(1,0,0)
+
+local function CalculateChance(p) return (math.random() * 100) <= p end
+local function getMousePosition() local ok,pos = pcall(UserInputService.GetMouseLocation,UserInputService) return ok and pos or Vector2.zero end
+local function getClosestPlayer()
+    local closest, dist = nil, SilentAim.FOVRadius
+    for _,pl in ipairs(Players:GetPlayers()) do
+        if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Humanoid") then
+            local hum = pl.Character.Humanoid
+            if hum.Health<=0 or (SilentAim.TeamCheck and pl.Team==LocalPlayer.Team) then continue end
+            local tp = pl.Character:FindFirstChild(SilentAim.TargetPart)
+            if not tp then continue end
+            local sp,on = Camera:WorldToViewportPoint(tp.Position)
+            if not on then continue end
+            if SilentAim.VisibleCheck and #Camera:GetPartsObscuringTarget({tp.Position},{LocalPlayer.Character,pl.Character})>0 then continue end
+            local d = (Vector2.new(sp.X,sp.Y)-getMousePosition()).Magnitude
+            if d<dist then dist,closest = d,tp end
         end
     end
     return closest
 end
-
-local function GetDirection(origin, targetPos)
-    return (targetPos - origin).Unit * 1000
+local function getDirection(o,t)
+    local pos = SilentAim.MouseHitPrediction and (t.Position+t.Velocity*SilentAim.MouseHitPredictionAmount) or t.Position
+    return (pos-o).Unit*1000
 end
 
-local oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+local oldNamecall; oldNamecall = hookmetamethod(game,"__namecall",newcclosure(function(...)
     local args = {...}
-    local self = args[1]
-    local method = getnamecallmethod()
-    if not checkcaller() and method == "Raycast" and self == workspace and SilentAim.Enabled then
-        local origin = args[2]
-        local dir = args[3]
-        local chance = math.random(1, 100)
-        if chance <= SilentAim.HitChance then
-            local target = GetClosestTarget()
-            if target then
-                args[3] = GetDirection(origin, target.Position)
-                return oldNamecall(unpack(args))
-            end
-        end
+    if not checkcaller() and args[1]==workspace and getnamecallmethod()=="Raycast" and SilentAim.Enabled and CalculateChance(SilentAim.HitChance) then
+        local tgt = getClosestPlayer()
+        if tgt then args[3]=getDirection(args[2],tgt) return oldNamecall(unpack(args)) end
     end
     return oldNamecall(...)
 end))
+
+local oldIndex; oldIndex = hookmetamethod(game,"__index",newcclosure(function(self,key)
+    if self==Mouse and not checkcaller() and SilentAim.Enabled then
+        local tgt = getClosestPlayer()
+        if tgt then if key=="Target" then return tgt end if key=="Hit" then return tgt.CFrame end end
+    end
+    return oldIndex(self,key)
+end))
+
+RunService.RenderStepped:Connect(function()
+    local mp = getMousePosition()
+    fov_circle.Position, fov_circle.Radius, fov_circle.Visible = mp, SilentAim.FOVRadius, SilentAim.FOVVisible
+    local tgt = getClosestPlayer()
+    mouse_box.Visible = SilentAim.ShowSilentAimTarget and tgt and (function(sp,on) mouse_box.Position=Vector2.new(sp.X,sp.Y) return on end)(Camera:WorldToViewportPoint((tgt or {}).Position or Vector3.new())) or false
+end)
+
+Rayfield:LoadConfiguration()
