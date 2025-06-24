@@ -544,10 +544,10 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window =
     Rayfield:CreateWindow(
     {
-        Name = "G&B Hub - Patz L.O.L",
+        Name = "LXAIL-GYB",
         Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
         LoadingTitle = "lol.",
-        LoadingSubtitle = "by fabian",
+        LoadingSubtitle = "by fabianstyx",
         Theme = "Default",
         DisableRayfieldPrompts = true,
         DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
@@ -558,14 +558,14 @@ local Window =
         },
         Discord = {
             Enabled = true,
-            Invite = "v8hYqpn2",
+            Invite = "jyxqTdVs8R",
             RememberJoins = false
         },
         KeySystem = true,
         KeySettings = {
-            Title = "G&B Hub - FABIAN L.O.L",
+            Title = "LXAIL",
             Subtitle = "Key System",
-            Note = "Enter in your Discord! :D\n(discord.gg/v8hYqpn2)",
+            Note = "Enter in your Discord! :D\n(https://discord.gg/jyxqTdVs8R)",
             FileName = "Key",
             SaveKey = true,
             GrabKeyFromSite = false,
@@ -575,7 +575,7 @@ local Window =
 )
 
 
-setclipboard(tostring("https://discord.gg/85tHp3jp"))
+setclipboard(tostring("https://discord.gg/jyxqTdVs8R"))
 
 local Tab = Window:CreateTab("Main", "album")
 local Section = Tab:CreateSection("Main Functions")
