@@ -233,15 +233,15 @@ end)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "AutoBlock Test",
+   Name = "LXAIL BETA",
    Icon = 0, 
-   LoadingTitle = "AB test",
+   LoadingTitle = "Enjoy",
    LoadingSubtitle = "by fabianstyx",
    Theme = "Default",
    ToggleUIKeybind = "K",
    ConfigurationSaving = {
       Enabled = true,
-      FileName = "Ab test"
+      FileName = "LXAIL"
    },
    Discord = { Enabled = false },
    KeySystem = false,
