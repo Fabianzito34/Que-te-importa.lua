@@ -93,7 +93,6 @@ statusGui.Size = UDim2.new(0, 200, 0, 50)
 statusGui.StudsOffset = Vector3.new(0, 3, 0)
 statusGui.AlwaysOnTop = true
 
-
 local textLabel = Instance.new("TextLabel")
 textLabel.Size = UDim2.new(1, 0, 1, 0)
 textLabel.BackgroundTransparency = 1
@@ -156,8 +155,18 @@ local attackAnimationsByCharacter = {
     ["rbxassetid://88863557701908"] = true, -- M1 #5
     ["rbxassetid://124781932685589"] = true, -- M1 #6
    },
+ ["Akaza"] = {
+        ["rbxassetid://71701002822245"] = true, -- CompassNeedle
+        ["rbxassetid://126390759499562"] = true, -- Destruct
+        ["rbxassetid://87979637402907"] = true, -- Disorder
+        ["rbxassetid://106648195695662"] = true, -- Ground
+        ["rbxassetid://93124711640725"] = true, -- M1 #1
+        ["rbxassetid://95878978707501"] = true, -- M1 #2
+        ["rbxassetid://109933027820599"] = true, -- M1 #3
+        ["rbxassetid://129579421678385"] = true, -- M1 # 4
+        ["rbxassetid://71615338947017"] = true, -- M1 #5
+ },
  -- nezt chr
- 
 }
 
 local function getCharacterName(model)
